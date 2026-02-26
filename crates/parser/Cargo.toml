@@ -6,6 +6,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "Salesforce AgentScript parser — lexer, AST, serializer, and validator"
+publish = false
 keywords = ["salesforce", "agentscript", "agentforce", "parser", "ast"]
 categories = ["parser-implementations", "development-tools"]
 

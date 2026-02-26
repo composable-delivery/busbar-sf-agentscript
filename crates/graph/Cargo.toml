@@ -6,6 +6,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "Graph analysis and validation for AgentScript ASTs"
+publish = false
 keywords = ["salesforce", "agentscript", "agentforce", "graph", "validation"]
 categories = ["development-tools", "data-structures"]
 
