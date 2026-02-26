@@ -1,0 +1,55 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    ["[", "]"],
+    ["(", ")"],
+    ["{", "}"]
+  ],
+  "autoClosingPairs": [
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "{", "close": "}" },
+    { "open": "\"", "close": "\"", "notIn": ["string"] },
+    { "open": "'", "close": "'", "notIn": ["string"] }
+  ],
+  "surroundingPairs": [
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "{", "close": "}" },
+    { "open": "\"", "close": "\"" },
+    { "open": "'", "close": "'" }
+  ],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(config|variables|system|messages|start_agent|topic|actions|reasoning|instructions|inputs|outputs|before_reasoning|after_reasoning|connection|knowledge|language)\\s*.*:\\s*$",
+    "decreaseIndentPattern": "^\\s*$"
+  },
+  "wordPattern": "@?[a-zA-Z_][a-zA-Z0-9_]*\\.?[a-zA-Z0-9_]*",
+  "onEnterRules": [
+    {
+      "beforeText": "^\\s*(config|variables|system|messages|start_agent|topic|actions|reasoning|instructions|inputs|outputs|before_reasoning|after_reasoning|connection|knowledge|language)\\s*.*:\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": ":\\s*\\|\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": ":\\s*->\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    }
+  ],
+  "folding": {
+    "markers": {
+      "start": "^\\s*(config|variables|system|start_agent|topic|connection)\\s*.*:",
+      "end": "^(?=\\s*(config|variables|system|start_agent|topic|connection)\\s*.*:|$)"
+    }
+  }
+}

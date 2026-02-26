@@ -1,0 +1,6 @@
+name = "AgentScript"
+grammar = "agentscript"
+path_suffixes = ["agent"]
+line_comments = ["# "]
+tab_size = 3
+hard_tabs = false

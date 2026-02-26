@@ -1,0 +1,3 @@
+[submodule "agent-script-recipes"]
+	path = agent-script-recipes
+	url = https://github.com/trailheadapps/agent-script-recipes

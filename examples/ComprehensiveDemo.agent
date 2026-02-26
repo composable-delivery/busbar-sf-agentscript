@@ -1,0 +1,1361 @@
+# ComprehensiveDemo.agent
+# =========================================
+# A Complete AgentScript Feature Demonstration
+#
+# This file demonstrates EVERY feature available in the AgentScript AST:
+# - All block types (config, variables, system, connections, knowledge, language, start_agent, topics)
+# - All expression types (Reference, String, Number, Bool, None, List, Object, BinOp, UnaryOp, Ternary, Property, Index)
+# - All instruction types (Simple, Static :|, Dynamic :->)
+# - All statement types (Set, Run, If, Transition)
+# - All reasoning action targets (Action, TransitionTo, Escalate, SetVariables, TopicDelegate)
+# - All variable types (string, number, boolean, object, date, datetime, time, timestamp, currency, id, integer, long, list[T])
+# - All operator types (==, !=, <, >, <=, >=, is, is not, and, or, +, -, not, -)
+# - All clause types (with, set, run, if)
+# - LLM slot-filling placeholder (...)
+#
+# Scenario: Apex Insurance - A comprehensive insurance service agent
+# =========================================
+
+# ============================================================================
+# CONFIG BLOCK - Agent metadata
+# ============================================================================
+config:
+   agent_name: "ApexInsuranceAgent"
+   agent_label: "Apex Insurance Service Agent"
+   description: "A comprehensive insurance agent handling policy management, claims processing, quotes, and customer service for Apex Insurance Company"
+   agent_type: "AgentforceServiceAgent"
+   default_agent_user: "agentforce@apexinsurance.com"
+
+# ============================================================================
+# LANGUAGE BLOCK - Internationalization settings
+# ============================================================================
+language:
+   default_locale: "en_US"
+   additional_locales: "es_MX,fr_CA,de_DE,ja_JP,zh_CN"
+
+# ============================================================================
+# CONNECTION BLOCKS - Escalation routing configuration
+# Each connection is declared separately with: connection <name>:
+# ============================================================================
+connection messaging:
+   escalation_message: "I'm connecting you with a licensed insurance specialist who can provide personalized assistance."
+   outbound_route_type: "OmniChannelFlow"
+   outbound_route_name: "InsuranceSpecialistQueue"
+
+connection claims_specialist:
+   escalation_message: "Let me transfer you to our claims specialist team for expedited processing."
+   outbound_route_type: "OmniChannelFlow"
+   outbound_route_name: "ClaimsSpecialistQueue"
+
+connection fraud_investigation:
+   escalation_message: "I'm escalating this to our fraud investigation unit for review."
+   outbound_route_type: "Case"
+   outbound_route_name: "FraudInvestigationTeam"
+
+# NOTE: knowledge block is defined in the AST but not yet implemented in the parser
+# When implemented, it would look like:
+# knowledge:
+#    policy_documents: "KnowledgeBase://InsurancePolicies"
+#    claims_procedures: "KnowledgeBase://ClaimsProcedures"
+
+# ============================================================================
+# VARIABLES BLOCK - Comprehensive variable types demonstration
+# ============================================================================
+variables:
+   # String types - mutable
+   customer_name: mutable string = ""
+      description: "Full name of the customer"
+
+   policy_number: mutable string = ""
+      description: "The customer's policy number (format: POL-XXXXXX)"
+
+   claim_status: mutable string = "new"
+      description: "Current status of the claim (new, submitted, under_review, approved, denied, closed)"
+
+   preferred_language: mutable string = "en"
+      description: "Customer's preferred language code"
+
+   # Number types - mutable
+   premium_amount: mutable number = 0.0
+      description: "Monthly premium amount in USD"
+
+   deductible: mutable number = 500.0
+      description: "Policy deductible amount"
+
+   coverage_limit: mutable number = 100000.0
+      description: "Maximum coverage limit for the policy"
+
+   claim_amount: mutable number = 0.0
+      description: "Total amount claimed"
+
+   some_foo: mutable number = 42.0
+      description: "An example variable named 'some_foo' to demonstrate variable naming"
+
+   churn_risk_score: mutable number = 0.0
+      description: "Risk score 0.0-1.0 indicating likelihood of customer churn"
+
+   # Boolean types - mutable
+   is_policy_active: mutable boolean = False
+      description: "Whether the customer has an active policy"
+
+   has_pending_claims: mutable boolean = False
+      description: "Whether the customer has any pending claims"
+
+   fraud_flag: mutable boolean = False
+      description: "Whether fraud detection has been triggered"
+
+   user_verified: mutable boolean = False
+      description: "Whether the user has completed identity verification"
+
+   quote_requested: mutable boolean = False
+      description: "Whether a quote has been generated this session"
+
+   # Object types - mutable (no default value - implicitly null)
+   customer_profile: mutable object
+      description: "Complete customer profile including contact info and preferences"
+
+   current_policy: mutable object
+      description: "Full details of the customer's current policy"
+
+   claim_details: mutable object
+      description: "Details of the current claim being processed"
+
+   quote_data: mutable object
+      description: "Generated quote information"
+
+   conversation_context: mutable object
+      description: "Contextual information about the current conversation"
+
+   # Integer type
+   retry_count: mutable integer = 0
+      description: "Number of retry attempts for the current operation"
+
+   turn_count: mutable integer = 0
+      description: "Number of conversation turns"
+
+   # Long type
+   session_start_timestamp: mutable long = 0
+      description: "Unix timestamp when session started"
+
+   # Currency type
+   total_premiums_paid: mutable currency = 0.0
+      description: "Total lifetime premiums paid by customer"
+
+   # Date/time types (no default value - implicitly null)
+   policy_start_date: mutable date
+      description: "Date when the policy became effective"
+
+   policy_expiry_date: mutable date
+      description: "Date when the policy expires"
+
+   last_payment_datetime: mutable datetime
+      description: "Date and time of last premium payment"
+
+   appointment_time: mutable time
+      description: "Scheduled appointment time"
+
+   claim_timestamp: mutable timestamp
+      description: "Timestamp when claim was filed"
+
+   # ID type (Salesforce record ID - no default value - implicitly null)
+   customer_id: mutable id
+      description: "Salesforce Contact record ID"
+
+   policy_record_id: mutable id
+      description: "Salesforce Policy__c record ID"
+
+   case_id: mutable id
+      description: "Salesforce Case record ID for support"
+
+   # List types
+   available_policies: mutable list[string] = []
+      description: "List of available policy types"
+
+   claim_history: mutable list[object] = []
+      description: "Historical claims for this customer"
+
+   documents_uploaded: mutable list[string] = []
+      description: "List of document IDs uploaded for claims"
+
+   coverage_options: mutable list[object] = []
+      description: "Available coverage options for quotes"
+
+   notification_preferences: mutable list[string] = ["email", "sms"]
+      description: "Customer's notification channel preferences"
+
+   # Linked variables (read-only from context)
+   # Note: Reference paths cannot use reserved keywords like 'id', 'type', 'string', etc.
+   logged_in_user_email: linked string
+      description: "Email of the logged-in user"
+      source: @messagingSession.userEmail
+
+   session_identifier: linked string
+      description: "Current session identifier"
+      source: @messagingSession.sessionID
+
+   channel_name: linked string
+      description: "Communication channel (web, mobile, phone)"
+      source: @messagingSession.channelType
+
+   channel_type: mutable string = "web"
+      description: "Type of channel the customer is using (web, mobile, phone)"
+
+   agent_availability: linked object
+      description: "Current availability of human agents"
+      source: @omnichannel.availability
+
+# ============================================================================
+# SYSTEM BLOCK - Global agent settings
+# ============================================================================
+system:
+   messages:
+      welcome: "Welcome to Apex Insurance! I'm your AI insurance assistant. I can help you with policy inquiries, claims, quotes, and account management. How may I assist you today?"
+      error: "I apologize, but I encountered an issue processing your request. Please try again or say 'agent' to speak with a human representative."
+
+   # Note: System block only supports simple string instructions (not :| or :->)
+   # Multiline and dynamic instructions are supported in reasoning blocks
+   instructions: "You are the Apex Insurance AI Agent, a professional and empathetic insurance representative. Help customers with policies, claims, quotes, and account management. Be professional, clear, empathetic. Verify identity before discussing sensitive info. Escalate complex issues to specialists. Follow all insurance regulations and protect customer privacy."
+
+# ============================================================================
+# START_AGENT BLOCK - Entry point with full lifecycle
+# ============================================================================
+start_agent topic_selector:
+   description: "Main entry point that routes customers to appropriate service topics based on their needs"
+
+   system:
+      instructions:|
+         As the topic selector, your job is to understand what the customer needs
+         and route them to the most appropriate topic. Listen carefully to their
+         initial request and make an informed decision.
+
+   actions:
+      # Action defined at start_agent level
+      log_session_start:
+         description: "Logs the start of a new customer session"
+         inputs:
+            user_email: string
+               description: "Email of the user starting the session"
+            channel: string
+               description: "The channel through which the user connected"
+         outputs:
+            session_logged: boolean
+               description: "Whether session was logged successfully"
+            session_token: string
+               description: "Unique session token for tracking"
+         target: "flow://LogSessionStart"
+
+   before_reasoning:
+      # Initialize session
+      set @variables.turn_count = @variables.turn_count + 1
+
+      # Log session start on first turn
+      if @variables.turn_count == 1:
+         run @actions.log_session_start
+            with user_email=@variables.logged_in_user_email
+            with channel=@variables.channel_type
+
+   reasoning:
+      instructions:->
+         | Analyze the customer's initial message and route to the appropriate topic.
+
+         if @variables.logged_in_user_email != "":
+            | Welcome back! I see you're logged in as {!@variables.logged_in_user_email}.
+         else:
+            | I don't see an account associated with this session.
+
+         | Available routing options:
+           - Policy Management: For policy inquiries, changes, renewals
+           - Claims Processing: For filing new claims or checking claim status
+           - Get a Quote: For new policy quotes or coverage comparisons
+           - Account Management: For billing, payments, profile updates
+           - General Support: For general questions or to speak with an agent
+
+         | Route to the most relevant topic based on the customer's needs.
+           If unclear, ask a clarifying question.
+
+      actions:
+         # Transition actions using @utils.transition
+         go_to_policy_management: @utils.transition to @topic.policy_management
+            description: "Route to policy management for policy inquiries and changes"
+
+         go_to_claims: @utils.transition to @topic.claims_processing
+            description: "Route to claims processing for new or existing claims"
+
+         go_to_quotes: @utils.transition to @topic.quote_generation
+            description: "Route to quote generation for new policy quotes"
+
+         go_to_account: @utils.transition to @topic.account_management
+            description: "Route to account management for billing and profile"
+
+         go_to_support: @utils.transition to @topic.general_support
+            description: "Route to general support for other inquiries"
+
+   after_reasoning:
+      # Log the routing decision (note: object literals with content not yet supported)
+      set @variables.turn_count = @variables.turn_count + 1
+
+# ============================================================================
+# TOPIC: Policy Management - Full featured topic
+# ============================================================================
+topic policy_management:
+   description: "Handles all policy-related inquiries including viewing coverage, making changes, and processing renewals"
+
+   system:
+      instructions:|
+         You are now in the Policy Management context.
+         Focus on helping customers understand and manage their insurance policies.
+         Always verify the policy number before making any changes.
+
+   actions:
+      # Lookup actions with all parameter options
+      lookup_policy:
+         description: "Retrieve detailed policy information"
+         label: "Look Up Policy"
+         require_user_confirmation: False
+         include_in_progress_indicator: True
+         progress_indicator_message: "Looking up your policy details..."
+         inputs:
+            policy_number: string
+               description: "The policy number to look up"
+               label: "Policy Number"
+               is_required: True
+            include_history: boolean
+               description: "Whether to include policy change history"
+               is_required: False
+         outputs:
+            policy: object
+               description: "Complete policy details"
+               label: "Policy Object"
+               is_displayable: True
+            status: string
+               description: "Policy status"
+               label: "Current Status"
+            premium: number
+               description: "Monthly premium amount"
+               label: "Monthly Premium"
+            coverage_details: list[object]
+               description: "List of coverage items"
+            internal_policy_id: long
+               description: "Internal system ID for the policy"
+               filter_from_agent: True
+         target: "flow://LookupPolicy"
+
+      update_coverage:
+         description: "Modify coverage options on an existing policy"
+         label: "Update Coverage"
+         require_user_confirmation: True
+         include_in_progress_indicator: True
+         progress_indicator_message: "Processing your coverage update..."
+         inputs:
+            policy_id: id
+               description: "Salesforce ID of the policy to update"
+               is_required: True
+            coverage_type: string
+               description: "Type of coverage to modify"
+               is_required: True
+            new_limit: number
+               description: "New coverage limit amount"
+               is_required: True
+            effective_date: date
+               description: "Date when changes take effect"
+               is_required: True
+         outputs:
+            updated_policy: object
+               description: "Updated policy details"
+            new_premium: number
+               description: "New monthly premium"
+            confirmation_number: string
+               description: "Change confirmation number"
+         target: "flow://UpdatePolicyCoverage"
+
+      calculate_premium:
+         description: "Calculate premium for coverage changes"
+         inputs:
+            policy_id: id
+               description: "Policy to calculate premium for"
+            proposed_changes: object
+               description: "Proposed coverage modifications"
+         outputs:
+            current_premium: number
+               description: "Current premium amount"
+            new_premium: number
+               description: "New premium after changes"
+            difference: number
+               description: "Premium difference"
+         target: "flow://CalculatePremium"
+
+      send_policy_documents:
+         description: "Send policy documents via email"
+         inputs:
+            policy_id: id
+               description: "Policy ID"
+            document_types: list[string]
+               description: "Types of documents to send"
+            email: string
+               description: "Email address to send to"
+         outputs:
+            sent: boolean
+               description: "Whether documents were sent"
+            document_urls: list[string]
+               description: "URLs to access documents"
+         target: "flow://SendPolicyDocuments"
+
+      # Action using a Prompt Template target
+      summarize_policy_coverage:
+         description: "Generate a natural language summary of policy coverage"
+         inputs:
+            policy_data: object
+               description: "Policy data to summarize"
+         outputs:
+            summary: string
+               description: "Human-readable coverage summary"
+         target: "prompt://PolicyCoverageSummary"
+
+   before_reasoning:
+      # Increment turn count
+      set @variables.turn_count = @variables.turn_count + 1
+
+      # Check if we need to load policy data
+      if @variables.policy_number != "" and @variables.current_policy == None:
+         run @actions.lookup_policy
+            with policy_number=@variables.policy_number
+            with include_history=True
+            set @variables.current_policy = @outputs.policy
+            set @variables.is_policy_active = @outputs.status == "active"
+            set @variables.premium_amount = @outputs.premium
+
+   reasoning:
+      instructions:->
+         # LOGIC INSTRUCTIONS: run actions before prompts (per docs pattern)
+         if @variables.current_policy != None and @variables.policy_number != "":
+            run @actions.summarize_policy_coverage
+               with policy_data=@variables.current_policy
+
+         # PROMPT INSTRUCTIONS
+         | Policy Management Dashboard
+
+         if @variables.policy_number == "":
+            | Please provide your policy number to continue.
+              Your policy number can be found on your insurance card or any correspondence from us.
+              Format: POL-XXXXXX
+
+         if @variables.policy_number != "" and @variables.current_policy != None:
+            | Policy: {!@variables.policy_number}
+              Status: {!@variables.is_policy_active}
+              Monthly Premium: ${!@variables.premium_amount}
+
+         if @variables.policy_number != "" and @variables.current_policy != None and @variables.is_policy_active == True:
+            | Your policy is active and in good standing.
+
+         if @variables.policy_number != "" and @variables.current_policy != None and @variables.is_policy_active != True:
+            | ⚠️ Your policy requires attention.
+
+         if @variables.policy_number != "" and @variables.current_policy != None:
+            | Coverage Summary:
+              {!@variables.current_policy.coverage_summary}
+
+            | I can help you with:
+              1. View detailed coverage information
+              2. Make coverage changes
+              3. Request policy documents
+              4. Renew your policy
+              5. File a claim
+
+            | What would you like to do?
+
+      actions:
+         # Store policy number using setVariables
+         set_policy_info: @utils.setVariables
+            description: "Store the policy number for lookup"
+            with policy_number=@inputs.policy_number
+
+         # Look up policy with slot-filling
+         view_policy: @actions.lookup_policy
+            description: "Look up policy details using the provided policy number"
+            with policy_number=@variables.policy_number
+            with include_history=True
+            set @variables.current_policy = @outputs.policy
+            set @variables.is_policy_active = @outputs.status == "active"
+            set @variables.premium_amount = @outputs.premium
+
+         # Update coverage with confirmation and callbacks
+         update_my_coverage: @actions.update_coverage
+            description: "Modify your coverage options"
+            available when @variables.is_policy_active == True and @variables.policy_record_id != None
+            with policy_id=@variables.policy_record_id
+            with coverage_type=@inputs.coverage_type
+            with new_limit=@inputs.new_limit
+            with effective_date=@inputs.effective_date
+            set @variables.current_policy = @outputs.updated_policy
+            set @variables.premium_amount = @outputs.new_premium
+            # Chained action: calculate the premium impact
+            run @actions.calculate_premium
+               with policy_id=@variables.policy_record_id
+               with proposed_changes=@variables.current_policy
+            # Chained action: send confirmation documents
+            run @actions.send_policy_documents
+               with policy_id=@variables.policy_record_id
+               with document_types="coverage_change_confirmation, updated_declarations"
+               with email=@variables.logged_in_user_email
+               set @variables.documents_uploaded = @outputs.document_urls
+
+         # Request documents
+         send_documents: @actions.send_policy_documents
+            description: "Send policy documents to your email"
+            available when @variables.policy_record_id != None
+            with policy_id=@variables.policy_record_id
+            with document_types=@inputs.document_types
+            with email=@variables.logged_in_user_email
+
+         # Navigate to claims
+         file_a_claim: @utils.transition to @topic.claims_processing
+            description: "Navigate to claims processing to file a new claim"
+            available when @variables.is_policy_active == True
+
+         # Return to main menu
+         back_to_main: @utils.transition to @topic.general_support
+            description: "Return to the main menu"
+
+         # Escalate to human
+         speak_to_agent: @utils.escalate
+            description: "Connect with a licensed insurance specialist"
+            available when @variables.retry_count > 2 or @variables.fraud_flag == True
+
+   after_reasoning:
+      # Update conversation context (object literal removed - SF doesn't support inline objects)
+      set @variables.turn_count = @variables.turn_count + 1
+
+      # Check for potential issues
+      if @variables.retry_count > 3:
+         set @variables.fraud_flag = @variables.fraud_flag or (@variables.retry_count > 5)
+
+# ============================================================================
+# TOPIC: Claims Processing - Complex workflows
+# ============================================================================
+topic claims_processing:
+   description: "Handles the complete claims lifecycle from filing to resolution including document collection and status updates"
+
+   actions:
+      file_new_claim:
+         description: "Initiate a new insurance claim"
+         label: "File New Claim"
+         require_user_confirmation: True
+         include_in_progress_indicator: True
+         progress_indicator_message: "Creating your claim..."
+         inputs:
+            policy_id: id
+               description: "Policy ID for the claim"
+               is_required: True
+            claim_type: string
+               description: "Type of claim (auto, property, liability, medical)"
+               is_required: True
+            incident_date: date
+               description: "Date of the incident"
+               is_required: True
+            incident_description: string
+               description: "Description of what happened"
+               is_required: True
+            estimated_amount: number
+               description: "Estimated claim amount"
+               is_required: False
+         outputs:
+            claim_id: id
+               description: "Salesforce Case ID for the claim"
+            claim_number: string
+               description: "Human-readable claim number"
+            status: string
+               description: "Initial claim status"
+            next_steps: list[string]
+               description: "Required next steps"
+         target: "flow://FileNewClaim"
+
+      get_claim_status:
+         description: "Check the current status of a claim"
+         inputs:
+            claim_number: string
+               description: "Claim number to look up"
+         outputs:
+            claim: object
+               description: "Full claim details"
+            status: string
+               description: "Current status"
+            timeline: list[object]
+               description: "Status history"
+            pending_actions: list[string]
+               description: "Actions needed from customer"
+         target: "flow://GetClaimStatus"
+
+      upload_claim_document:
+         description: "Upload supporting documentation for a claim"
+         inputs:
+            claim_id: id
+               description: "Claim to attach document to"
+            document_type: string
+               description: "Type of document (photo, receipt, police_report, medical_record)"
+            document_data: string
+               description: "Base64 encoded document data"
+         outputs:
+            document_id: string
+               description: "Uploaded document ID"
+            uploaded: boolean
+               description: "Upload success status"
+         target: "flow://UploadClaimDocument"
+
+      assess_claim:
+         description: "Run automated claim assessment"
+         inputs:
+            claim_id: id
+               description: "Claim to assess"
+         outputs:
+            assessment: object
+               description: "Assessment results"
+            fraud_score: number
+               description: "Fraud probability score"
+            recommended_action: string
+               description: "Recommended next action"
+            estimated_payout: number
+               description: "Estimated payout amount"
+         target: "apex://ClaimAssessmentService"
+
+      schedule_inspection:
+         description: "Schedule a property or vehicle inspection"
+         inputs:
+            claim_id: id
+               description: "Related claim ID"
+            inspection_type: string
+               description: "Type of inspection"
+            preferred_date: date
+               description: "Preferred inspection date"
+            preferred_time: time
+               description: "Preferred time"
+            location: string
+               description: "Inspection location"
+         outputs:
+            appointment_id: string
+               description: "Appointment confirmation"
+            scheduled_datetime: datetime
+               description: "Confirmed date and time"
+            inspector_name: string
+               description: "Assigned inspector"
+         target: "flow://ScheduleInspection"
+
+      approve_claim:
+         description: "Approve claim for payment (internal use)"
+         inputs:
+            claim_id: id
+               description: "Claim to approve"
+            approved_amount: number
+               description: "Approved payout amount"
+            notes: string
+               description: "Approval notes"
+         outputs:
+            approved: boolean
+               description: "Approval status"
+            payment_scheduled: date
+               description: "Payment date"
+         target: "flow://ApproveClaim"
+
+   before_reasoning:
+      set @variables.turn_count = @variables.turn_count + 1
+
+      # Load existing claim if we have a claim number but no details
+      if @variables.claim_details == None and @variables.case_id != None:
+         run @actions.get_claim_status
+            with claim_number=@variables.claim_details.claim_number
+            set @variables.claim_details = @outputs.claim
+            set @variables.claim_status = @outputs.status
+            set @variables.has_pending_claims = True
+
+   reasoning:
+      instructions:->
+         | Claims Processing Center
+
+         if @variables.has_pending_claims and @variables.claim_details != None:
+            | Active Claim: {!@variables.claim_details.claim_number}
+              Status: {!@variables.claim_status}
+              Amount: ${!@variables.claim_amount}
+
+         if @variables.has_pending_claims and @variables.claim_status == "pending_documents":
+            | ⚠️ We need additional documentation to proceed with your claim.
+              Required: {!@variables.claim_details.pending_documents}
+
+         if @variables.has_pending_claims and @variables.claim_status == "under_review":
+            | Your claim is currently being reviewed by our adjusters.
+              Estimated completion: {!@variables.claim_details.estimated_completion}
+
+         if @variables.has_pending_claims and @variables.claim_status == "approved":
+            | 🎉 Your claim has been approved!
+              Approved amount: ${!@variables.claim_details.approved_amount}
+              Payment scheduled: {!@variables.claim_details.payment_date}
+
+         if not @variables.has_pending_claims or @variables.claim_details == None:
+            | I can help you with:
+              - File a new claim
+              - Check claim status
+              - Upload documents
+              - Schedule an inspection
+
+              What would you like to do?
+
+         if @variables.fraud_flag:
+            | Note: This case requires additional verification.
+
+         | Use {!@actions.file_new_claim} to start a new claim.
+           Use {!@actions.get_claim_status} to check an existing claim.
+
+      actions:
+         # File new claim with full callback chain
+         file_claim: @actions.file_new_claim
+            description: "File a new insurance claim"
+            available when @variables.is_policy_active == True
+            with policy_id=@variables.policy_record_id
+            with claim_type=@inputs.claim_type
+            with incident_date=@inputs.incident_date
+            with incident_description=@inputs.incident_description
+            with estimated_amount=@inputs.estimated_amount
+            set @variables.case_id = @outputs.claim_id
+            set @variables.claim_status = @outputs.status
+            set @variables.has_pending_claims = True
+            # Run fraud assessment after filing
+            run @actions.assess_claim
+               with claim_id=@variables.case_id
+               set @variables.fraud_flag = @outputs.fraud_score > 0.7
+               set @variables.churn_risk_score = @outputs.fraud_score
+            # Post-action conditional with escalation
+            if @variables.fraud_flag == True:
+               transition to @topic.fraud_review
+
+         # Check claim status
+         check_status: @actions.get_claim_status
+            description: "Check the status of your claim"
+            with claim_number=@inputs.claim_number
+            set @variables.claim_details = @outputs.claim
+            set @variables.claim_status = @outputs.status
+
+         # Upload documents
+         upload_document: @actions.upload_claim_document
+            description: "Upload supporting documents for your claim"
+            available when @variables.case_id != None
+            with claim_id=@variables.case_id
+            with document_type=@inputs.document_type
+            with document_data=@inputs.document_data
+            # Conditional: Re-assess after document upload
+            if @outputs.uploaded == True:
+               transition to @topic.claims_processing
+
+         # Schedule inspection
+         schedule_visit: @actions.schedule_inspection
+            description: "Schedule a property or vehicle inspection"
+            available when @variables.case_id != None and @variables.claim_status == "pending_inspection"
+            with claim_id=@variables.case_id
+            with inspection_type=@inputs.inspection_type
+            with preferred_date=@inputs.preferred_date
+            with preferred_time=@inputs.preferred_time
+            with location=@inputs.location
+            set @variables.appointment_time = @outputs.scheduled_datetime
+
+         # Topic delegation - consult specialist
+         consult_adjuster: @topic.adjuster_consultation
+            description: "Consult with a claims adjuster for complex cases"
+            available when @variables.claim_amount > 10000 or @variables.claim_status == "disputed"
+
+         # Escalate complex claims
+         escalate_claim: @utils.escalate
+            description: "Speak with a claims specialist"
+            available when @variables.retry_count > 2 or @variables.claim_status == "disputed"
+
+         # Navigate back
+         back_to_policy: @utils.transition to @topic.policy_management
+            description: "Return to policy management"
+
+   after_reasoning:
+      # Log claim interaction (inline objects removed - SF doesn't support them)
+      set @variables.turn_count = @variables.turn_count + 1
+
+# ============================================================================
+# TOPIC: Quote Generation - Expression-heavy topic
+# ============================================================================
+topic quote_generation:
+   description: "Generates personalized insurance quotes using all expression types and operators"
+
+   actions:
+      generate_quote:
+         description: "Generate a comprehensive insurance quote"
+         inputs:
+            quote_type: string
+               description: "Type of insurance quote"
+            coverage_level: string
+               description: "Desired coverage level (basic, standard, premium)"
+            personal_info: object
+               description: "Applicant information"
+            property_info: object
+               description: "Property or vehicle details"
+            coverage_options: list[object]
+               description: "Selected coverage options"
+         outputs:
+            quote: object
+               description: "Generated quote details"
+            monthly_premium: number
+               description: "Monthly premium amount"
+            annual_premium: number
+               description: "Annual premium (with discount)"
+            coverage_summary: list[object]
+               description: "Coverage breakdown"
+            quote_id: string
+               description: "Quote reference ID"
+            valid_until: date
+               description: "Quote expiration date"
+         target: "flow://GenerateInsuranceQuote"
+
+      compare_quotes:
+         description: "Compare multiple quote options"
+         inputs:
+            quote_ids: list[string]
+               description: "Quote IDs to compare"
+         outputs:
+            comparison: object
+               description: "Side-by-side comparison"
+            recommendation: string
+               description: "Recommended option"
+         target: "flow://CompareQuotes"
+
+      apply_discount:
+         description: "Apply promotional discount to quote"
+         inputs:
+            quote_id: string
+               description: "Quote to apply discount to"
+            discount_code: string
+               description: "Promotional code"
+         outputs:
+            applied: boolean
+               description: "Whether discount was applied"
+            new_premium: number
+               description: "Premium after discount"
+            savings: number
+               description: "Amount saved"
+         target: "flow://ApplyDiscount"
+
+      convert_quote_to_policy:
+         description: "Convert accepted quote to active policy"
+         inputs:
+            quote_id: string
+               description: "Quote to convert"
+            payment_method: string
+               description: "Payment method"
+            start_date: date
+               description: "Policy start date"
+         outputs:
+            policy_id: id
+               description: "New policy ID"
+            policy_number: string
+               description: "New policy number"
+            first_payment_date: date
+               description: "First payment date"
+            confirmation: string
+               description: "Confirmation message"
+         target: "flow://ConvertQuoteToPolicy"
+
+   reasoning:
+      # Dynamic instructions demonstrating all expression types
+      instructions:->
+         | Insurance Quote Generator
+
+         # Demonstrate ternary expressions
+         | Status: {!@variables.quote_requested if @variables.quote_requested else "No quote yet"}
+
+         if not @variables.quote_requested:
+            | I can generate personalized quotes for:
+              - Auto Insurance
+              - Home Insurance
+              - Renters Insurance
+              - Life Insurance
+              - Umbrella Coverage
+
+            | To get started, tell me what type of coverage you need.
+
+         if @variables.quote_data != None:
+            # Show quote details using property access
+            | Your Quote Summary:
+              Quote ID: {!@variables.quote_data.quote_id}
+              Type: {!@variables.quote_data.type}
+
+            # Quote premium summary
+            | Monthly Premium: ${!@variables.quote_data.monthly_premium}
+              Annual Premium: ${!@variables.quote_data.annual_premium}
+
+         if @variables.quote_data != None and @variables.quote_data.monthly_premium > 0 and @variables.quote_data.monthly_premium < 100:
+            | 💚 This is a competitive rate for your coverage level!
+
+         if @variables.quote_data != None and @variables.quote_data.monthly_premium >= 100 and @variables.quote_data.monthly_premium <= 300:
+            | 💛 This rate is within the typical range.
+
+         if @variables.quote_data != None and @variables.quote_data.monthly_premium > 300:
+            | 🟠 This is a higher rate. Let me see if we can find ways to reduce it.
+
+         if @variables.quote_data != None:
+            # Show coverage options using list
+            | Coverage Options Included:
+              {!@variables.quote_data.coverage_summary}
+
+            | Quote valid until: {!@variables.quote_data.valid_until}
+
+         # Demonstrate boolean operators
+         if @variables.is_policy_active and @variables.quote_requested:
+            | Note: You have an existing active policy. This quote would replace or supplement your current coverage.
+
+         if @variables.is_policy_active or @variables.quote_requested:
+            | I can help you compare options to ensure you get the best coverage.
+
+         # Complex condition with is/is not
+         if @variables.customer_profile is not None:
+            | I have your profile on file, so I can pre-fill some information.
+
+         # Identity check with 'is None'
+         if @variables.policy_start_date is None:
+            | No existing policy start date found.
+
+         | What type of insurance are you interested in?
+
+      actions:
+         # Generate quote with all binding patterns
+         get_quote: @actions.generate_quote
+            description: "Generate a new insurance quote based on your needs"
+            with quote_type=@inputs.quote_type
+            with coverage_level=@inputs.coverage_level
+            with personal_info=@inputs.personal_info
+            with property_info=@inputs.property_info
+            with coverage_options=@inputs.coverage_options
+            set @variables.quote_data = @outputs.quote
+            set @variables.premium_amount = @outputs.monthly_premium
+            set @variables.quote_requested = True
+            set @variables.coverage_options = @outputs.coverage_summary
+
+         # Compare multiple quotes
+         compare_options: @actions.compare_quotes
+            description: "Compare multiple quote options side by side"
+            available when @variables.quote_requested == True
+            with quote_ids=@inputs.quote_ids
+
+         # Apply discount code
+         apply_promo_code: @actions.apply_discount
+            description: "Apply a promotional discount code to your quote"
+            available when @variables.quote_data != None
+            with quote_id=@variables.quote_data.quote_id
+            with discount_code=@inputs.discount_code
+            set @variables.premium_amount = @outputs.new_premium
+            # Update quote data with savings
+            run @actions.generate_quote
+               with quote_type=@variables.quote_data.type
+               with coverage_level=@variables.quote_data.level
+               with personal_info=@variables.customer_profile
+               with property_info=@inputs.property_info
+               with coverage_options=@variables.coverage_options
+               set @variables.quote_data = @outputs.quote
+
+         # Accept and convert quote
+         purchase_policy: @actions.convert_quote_to_policy
+            description: "Accept this quote and start your new policy"
+            available when @variables.quote_data != None and @variables.premium_amount > 0
+            with quote_id=@variables.quote_data.quote_id
+            with payment_method=@inputs.payment_method
+            with start_date=@inputs.start_date
+            set @variables.policy_number = @outputs.policy_number
+            set @variables.policy_record_id = @outputs.policy_id
+            set @variables.is_policy_active = True
+            # Conditional navigation
+            if @outputs.policy_id != None:
+               transition to @topic.policy_management
+
+         # Store customer info for quote
+         save_info: @utils.setVariables
+            description: "Save your information for the quote"
+            with customer_name=@inputs.customer_name
+            with customer_profile=@inputs.customer_profile
+
+         # Back to main
+         back_to_main: @utils.transition to @topic.general_support
+            description: "Return to the main menu"
+
+# ============================================================================
+# TOPIC: Account Management - Billing and profile
+# ============================================================================
+topic account_management:
+   description: "Manages customer account including billing, payments, and profile updates"
+
+   actions:
+      get_billing_summary:
+         description: "Get billing account summary"
+         inputs:
+            customer_id: id
+               description: "Customer Salesforce ID"
+         outputs:
+            balance: currency
+               description: "Current balance due"
+            next_payment_date: date
+               description: "Next payment due date"
+            payment_history: list[object]
+               description: "Recent payments"
+            auto_pay_enabled: boolean
+               description: "Auto-pay status"
+         target: "flow://GetBillingSummary"
+
+      make_payment:
+         description: "Process a payment"
+         require_user_confirmation: True
+         inputs:
+            customer_id: id
+               description: "Customer ID"
+            amount: currency
+               description: "Payment amount"
+            payment_method: string
+               description: "Payment method"
+         outputs:
+            payment_id: string
+               description: "Payment confirmation"
+            new_balance: currency
+               description: "Balance after payment"
+            receipt_url: string
+               description: "Receipt URL"
+         target: "flow://ProcessPayment"
+
+      update_profile:
+         description: "Update customer profile information"
+         inputs:
+            customer_id: id
+               description: "Customer ID"
+            field: string
+               description: "Field to update"
+            value: string
+               description: "New value"
+         outputs:
+            updated: boolean
+               description: "Update success"
+            profile: object
+               description: "Updated profile"
+         target: "flow://UpdateCustomerProfile"
+
+      setup_autopay:
+         description: "Configure automatic payments"
+         require_user_confirmation: True
+         inputs:
+            customer_id: id
+               description: "Customer ID"
+            payment_method: string
+               description: "Payment method for auto-pay"
+            payment_day: integer
+               description: "Day of month (1-28)"
+         outputs:
+            enabled: boolean
+               description: "Auto-pay enabled"
+            next_charge_date: date
+               description: "Next auto-charge date"
+         target: "flow://SetupAutoPay"
+
+   before_reasoning:
+      # Load billing summary if customer verified
+      if @variables.user_verified and @variables.customer_id != None:
+         run @actions.get_billing_summary
+            with customer_id=@variables.customer_id
+            set @variables.total_premiums_paid = @outputs.balance
+
+   reasoning:
+      instructions:->
+         | Account Management
+
+         if not @variables.user_verified:
+            | For security, please verify your identity to access account details.
+              I'll need your policy number and the last 4 digits of your SSN.
+
+         if @variables.fraud_flag:
+            | This case has been flagged for fraud review. Please proceed to the fraud review action.
+
+         if @variables.user_verified:
+            | Account: {!@variables.customer_name}
+              Customer ID: {!@variables.customer_id}
+
+            # Use ternary for display
+            | Balance: ${!"0.00" if @variables.total_premiums_paid == 0 else @variables.total_premiums_paid}
+              Next Payment: {!@variables.last_payment_datetime}
+
+            | I can help you with:
+              - View billing history
+              - Make a payment
+              - Update profile information
+              - Set up autopay
+              - Change notification preferences
+
+      actions:
+         # Verify identity first
+         verify_identity: @utils.setVariables
+            description: "Verify your identity with policy number and SSN"
+            with policy_number=@inputs.policy_number
+            with user_verified=True
+
+         # View billing
+         view_billing: @actions.get_billing_summary
+            description: "View your billing summary and payment history"
+            available when @variables.user_verified == True
+            with customer_id=@variables.customer_id
+
+         # Make payment
+         pay_now: @actions.make_payment
+            description: "Make a payment on your account"
+            available when @variables.user_verified == True and @variables.total_premiums_paid > 0
+            with customer_id=@variables.customer_id
+            with amount=@inputs.amount
+            with payment_method=@inputs.payment_method
+            set @variables.total_premiums_paid = @outputs.new_balance
+            set @variables.last_payment_datetime = @outputs.payment_id
+
+         # Update profile
+         update_info: @actions.update_profile
+            description: "Update your profile information"
+            available when @variables.user_verified == True
+            with customer_id=@variables.customer_id
+            with field=@inputs.field
+            with value=@inputs.value
+            set @variables.customer_profile = @outputs.profile
+
+         # Setup autopay
+         enable_autopay: @actions.setup_autopay
+            description: "Set up automatic monthly payments"
+            available when @variables.user_verified == True
+            with customer_id=@variables.customer_id
+            with payment_method=@inputs.payment_method
+            with payment_day=@inputs.payment_day
+
+         # Fraud review transition (moved from instructions - @utils.transition only works in actions)
+         go_to_fraud_review: @utils.transition to @topic.fraud_review
+            description: "Navigate to fraud review for flagged cases"
+            available when @variables.fraud_flag
+
+         # Back to main
+         main_menu: @utils.transition to @topic.general_support
+            description: "Return to main menu"
+
+# ============================================================================
+# TOPIC: General Support - Fallback with escalation
+# ============================================================================
+topic general_support:
+   description: "General support hub for routing, FAQs, and human escalation"
+
+   actions:
+      search_knowledge:
+         description: "Search knowledge base for answers"
+         inputs:
+            query: string
+               description: "Search query"
+            category: string
+               description: "Category to search"
+         outputs:
+            articles: list[object]
+               description: "Matching articles"
+            top_answer: string
+               description: "Best matching answer"
+         target: "flow://SearchKnowledge"
+
+      create_support_case:
+         description: "Create a support case"
+         inputs:
+            subject: string
+               description: "Case subject"
+            issue_description: string
+               description: "Issue description"
+            priority: string
+               description: "Priority level"
+            category: string
+               description: "Issue category"
+         outputs:
+            case_id: id
+               description: "Created case ID"
+            case_number: string
+               description: "Case number"
+         target: "flow://CreateSupportCase"
+
+      check_agent_availability:
+         description: "Check human agent availability"
+         inputs:
+            skill_group: string
+               description: "Required skill group"
+         outputs:
+            available: boolean
+               description: "Agent availability"
+            estimated_wait: number
+               description: "Estimated wait time in minutes"
+            queue_position: integer
+               description: "Position in queue"
+         target: "flow://CheckAgentAvailability"
+
+   reasoning:
+      instructions:->
+         | You are in the general support hub. Help customers find answers,
+           route them to appropriate topics, or connect them with human agents.
+           Be friendly, helpful, and efficient.
+
+      actions:
+         # Search knowledge base
+         find_answer: @actions.search_knowledge
+            description: "Search our knowledge base for answers to your questions"
+            with query=@inputs.query
+            with category=@inputs.category
+
+         # Create support case
+         open_case: @actions.create_support_case
+            description: "Create a support case for follow-up"
+            with subject=@inputs.subject
+            with issue_description=@inputs.issue_description
+            with priority="medium"
+            with category=@inputs.category
+            set @variables.case_id = @outputs.case_id
+
+         # Check agent availability before escalation
+         check_agents: @actions.check_agent_availability
+            description: "Check if human agents are available"
+            with skill_group="general_support"
+
+         # Route to specific topics
+         go_policy: @utils.transition to @topic.policy_management
+            description: "Help with policy-related questions"
+
+         go_claims: @utils.transition to @topic.claims_processing
+            description: "Help with claims"
+
+         go_quotes: @utils.transition to @topic.quote_generation
+            description: "Get an insurance quote"
+
+         go_account: @utils.transition to @topic.account_management
+            description: "Help with billing or account"
+
+         # Escalate to human
+         connect_to_agent: @utils.escalate
+            description: "Connect with a human agent"
+
+# ============================================================================
+# TOPIC: Adjuster Consultation - Topic Delegation Target
+# ============================================================================
+topic adjuster_consultation:
+   description: "Specialist topic for claims adjuster consultation - used as delegation target"
+
+   actions:
+      get_adjuster_assessment:
+         description: "Get adjuster's assessment on a claim"
+         inputs:
+            claim_id: id
+               description: "Claim to assess"
+            assessment_type: string
+               description: "Type of assessment needed"
+         outputs:
+            assessment: object
+               description: "Assessment details"
+            recommendation: string
+               description: "Adjuster recommendation"
+            estimated_payout: number
+               description: "Recommended payout"
+         target: "apex://AdjusterAssessmentService"
+
+   reasoning:
+      instructions:->
+         | Claims Adjuster Consultation
+
+         | I'm analyzing the claim details...
+
+         if @variables.claim_details != None:
+            | Claim: {!@variables.claim_details.claim_number}
+              Type: {!@variables.claim_details.claim_type}
+              Amount: ${!@variables.claim_amount}
+
+            | Running adjuster assessment protocols...
+
+         | I will provide my assessment and return control to the main claims process.
+
+      actions:
+         assess_claim: @actions.get_adjuster_assessment
+            description: "Run adjuster assessment"
+            with claim_id=@variables.case_id
+            with assessment_type="comprehensive"
+            set @variables.claim_details = @outputs.assessment
+
+# ============================================================================
+# TOPIC: Fraud Review - Complex conditional flows
+# ============================================================================
+topic fraud_review:
+   description: "Handles potential fraud cases with conditional escalation"
+
+   actions:
+      run_fraud_check:
+         description: "Run comprehensive fraud analysis"
+         inputs:
+            claim_id: id
+               description: "Claim to analyze"
+            customer_id: id
+               description: "Customer to check"
+         outputs:
+            fraud_probability: number
+               description: "Fraud probability 0-1"
+            risk_factors: list[string]
+               description: "Identified risk factors"
+            recommendation: string
+               description: "Recommended action"
+         target: "apex://FraudDetectionService"
+
+      flag_for_investigation:
+         description: "Flag case for fraud investigation"
+         inputs:
+            claim_id: id
+               description: "Claim ID"
+            reason: string
+               description: "Flagging reason"
+            priority: string
+               description: "Investigation priority"
+         outputs:
+            flagged: boolean
+               description: "Flag success"
+            investigation_id: string
+               description: "Investigation case ID"
+         target: "flow://FlagForFraudInvestigation"
+
+   before_reasoning:
+      # Run fraud check automatically
+      if @variables.fraud_flag and @variables.case_id != None:
+         run @actions.run_fraud_check
+            with claim_id=@variables.case_id
+            with customer_id=@variables.customer_id
+            set @variables.churn_risk_score = @outputs.fraud_probability
+
+      # Conditional escalation based on fraud score (flattened from nested if)
+      if @variables.fraud_flag and @variables.case_id != None and @variables.churn_risk_score > 0.9:
+         run @actions.flag_for_investigation
+            with claim_id=@variables.case_id
+            with reason="High fraud probability detected"
+            with priority="urgent"
+
+   reasoning:
+      instructions:->
+         | Security Review Required
+
+         | Your claim requires additional verification. This is a standard procedure
+           to protect both you and our policyholders.
+
+         if @variables.churn_risk_score > 0.7:
+            | We've identified some items that need clarification.
+              A specialist will contact you within 24-48 hours.
+         else:
+            | This appears to be a routine verification.
+              We should be able to resolve this quickly.
+
+         | Is there any additional information you'd like to provide?
+
+      actions:
+         # Provide additional info
+         provide_info: @utils.setVariables
+            description: "Provide additional information to support your claim"
+            with claim_details=@inputs.claim_details
+
+         # Request human review
+         request_review: @utils.escalate
+            description: "Request a human review of your case"
+
+         # Return to claims after clearance
+         return_to_claims: @utils.transition to @topic.claims_processing
+            description: "Return to claims processing"
+            available when @variables.churn_risk_score < 0.5

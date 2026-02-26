@@ -1,0 +1,76 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/parser",
+    "crates/graph",
+    "crates/lsp",
+]
+
+# Root umbrella crate
+[package]
+name = "busbar-sf-agentscript"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "AgentScript parser, graph analysis, and LSP for Salesforce Agentforce"
+readme = "README.md"
+keywords = ["salesforce", "agentscript", "agentforce", "parser", "graph"]
+categories = ["parser-implementations", "development-tools"]
+autotests = false
+
+[features]
+default = ["full"]
+
+full = ["parser", "graph"]
+
+parser = ["dep:busbar-sf-agentscript-parser"]
+graph  = ["parser", "dep:busbar-sf-agentscript-graph"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+busbar-sf-agentscript-parser = { workspace = true, optional = true }
+busbar-sf-agentscript-graph  = { workspace = true, optional = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+
+# ─── Workspace-wide metadata ──────────────────────────────────────────────────
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/composable-delivery/busbar-sf-agentscript"
+rust-version = "1.88"
+
+[workspace.dependencies]
+# Internal crates (package names use busbar-sf-*, dir names stay short)
+busbar-sf-agentscript-parser = { version = "0.1.0", path = "crates/parser" }
+busbar-sf-agentscript-graph  = { version = "0.1.0", path = "crates/graph" }
+busbar-sf-agentscript-lsp    = { version = "0.1.0", path = "crates/lsp" }
+
+# Serialization
+serde       = { version = "1.0", features = ["derive"] }
+serde_json  = "1.0"
+indexmap    = { version = "2.0", features = ["serde"] }
+thiserror   = "2.0"
+
+# Parser
+chumsky = { version = "0.12.0", features = ["pratt"] }
+ariadne = "0.4"
+
+# Graph
+petgraph  = "0.6"
+ascii-dag = "0.2"
+
+# Pretty-print diffs (tests)
+pretty_assertions = "1.4"
+
+[profile.release]
+lto           = true
+codegen-units = 1

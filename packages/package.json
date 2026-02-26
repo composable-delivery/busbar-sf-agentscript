@@ -1,0 +1,152 @@
+{
+  "name": "vscode-agentscript",
+  "displayName": "AgentScript",
+  "description": "AgentScript language support for Salesforce Agentforce",
+  "version": "0.1.0",
+  "publisher": "composable-delivery",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "agentscript",
+    "salesforce",
+    "agentforce",
+    "agent",
+    "conversational ai"
+  ],
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/composable-delivery/sf-agentscript.git",
+    "directory": "packages/vscode-agentscript"
+  },
+  "activationEvents": [
+    "onLanguage:agentscript"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "agentscript",
+        "aliases": [
+          "AgentScript",
+          "agentscript"
+        ],
+        "extensions": [
+          ".agent"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "agentscript",
+        "scopeName": "source.agentscript",
+        "path": "./syntaxes/agentscript.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "AgentScript",
+      "properties": {
+        "agentscript.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        },
+        "agentscript.maxNumberOfProblems": {
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "agentscript.lsp.serverPath": {
+          "type": "string",
+          "default": null,
+          "markdownDescription": "Absolute path to the `agentscript-lsp` binary. If not set, the extension looks for a bundled binary or a workspace cargo build."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "agentscript.restartServer",
+        "title": "AgentScript: Restart Language Server"
+      },
+      {
+        "command": "agentscript.showGraph",
+        "title": "AgentScript: Show Topic Graph",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "agentscript.simulate",
+        "title": "AgentScript: Simulate Agent",
+        "icon": "$(play)"
+      },
+      {
+        "command": "agentscript.refreshDependencies",
+        "title": "AgentScript: Refresh Dependencies",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "agentscript.showGraph",
+          "when": "resourceLangId == agentscript",
+          "group": "navigation"
+        },
+        {
+          "command": "agentscript.simulate",
+          "when": "resourceLangId == agentscript",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "agentscript.refreshDependencies",
+          "when": "view == agentscriptDependencies",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "agentscriptDependencies",
+          "name": "AgentScript Dependencies",
+          "when": "resourceLangId == agentscript || agentscript.hasAgentFiles",
+          "icon": "$(plug)"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentscriptDependencies",
+        "contents": "Open an AgentScript (.agent) file to see its external dependencies.\n[Open File](command:workbench.action.openFile)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.9.3",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

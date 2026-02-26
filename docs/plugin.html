@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentScript CLI Plugin - Salesforce CLI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      color: white;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+    header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin: 0.5rem 0.25rem;
+    }
+    main {
+      padding: 3rem 2rem;
+    }
+    section {
+      margin-bottom: 3rem;
+    }
+    h2 {
+      color: #1e3a8a;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    h3 {
+      color: #3b82f6;
+      font-size: 1.3rem;
+      margin: 1.5rem 0 0.75rem;
+    }
+    .install-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+    .install-box h3 {
+      margin-top: 0;
+      color: #059669;
+    }
+    code {
+      background: #1f2937;
+      color: #10b981;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1rem 0;
+      line-height: 1.5;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    .command-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .command-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .command-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .command-card h4 {
+      color: #1e3a8a;
+      margin-bottom: 0.5rem;
+      font-size: 1.1rem;
+    }
+    .command-card p {
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+    .feature-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    .feature-list li {
+      padding: 0.75rem 0;
+      padding-left: 2rem;
+      position: relative;
+    }
+    .feature-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    .download-button {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.2s;
+      margin: 0.5rem;
+    }
+    .download-button:hover {
+      background: #059669;
+      transform: translateY(-2px);
+    }
+    .download-button.secondary {
+      background: #3b82f6;
+    }
+    .download-button.secondary:hover {
+      background: #2563eb;
+    }
+    footer {
+      background: #f9fafb;
+      padding: 2rem;
+      text-align: center;
+      color: #6b7280;
+      border-top: 1px solid #e5e7eb;
+    }
+    footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🤖 AgentScript CLI Plugin</h1>
+      <p>Salesforce CLI plugin for parsing and analyzing AgentScript files</p>
+      <div>
+        <span class="badge">WASM-powered</span>
+        <span class="badge">Fast & Efficient</span>
+        <span class="badge">TypeScript</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="installation">
+        <h2>Installation</h2>
+        
+        <div class="install-box">
+          <h3>📦 Install from npm (Recommended)</h3>
+          <pre><code>sf plugins install @salesforce/plugin-agentscript</code></pre>
+        </div>
+
+        <div class="install-box">
+          <h3>🔧 Install from GitHub (Latest)</h3>
+          <pre><code>sf plugins install https://github.com/composable-delivery/sf-agentscript</code></pre>
+        </div>
+
+        <div class="install-box">
+          <h3>💻 Development Installation</h3>
+          <pre><code>git clone https://github.com/composable-delivery/sf-agentscript.git
+cd sf-agentscript/plugin-agentscript
+npm install
+npm run build
+sf plugins link .</code></pre>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2>Features</h2>
+        <ul class="feature-list">
+          <li><strong>Fast WASM-based parsing</strong> - Built with Rust for maximum performance</li>
+          <li><strong>Syntax validation</strong> - Quickly validate AgentScript files</li>
+          <li><strong>AST inspection</strong> - View and query the Abstract Syntax Tree</li>
+          <li><strong>Element listing</strong> - List topics, variables, actions, and messages</li>
+          <li><strong>AST queries</strong> - Extract specific parts using path notation</li>
+          <li><strong>CI/CD integration</strong> - Perfect for automation and pipelines</li>
+        </ul>
+      </section>
+
+      <section id="commands">
+        <h2>Commands</h2>
+        
+        <div class="command-list">
+          <div class="command-card">
+            <h4>sf agentscript-parser parse</h4>
+            <p>Parse an AgentScript file and output its AST in JSON or pretty format.</p>
+            <pre><code>sf agentscript-parser parse \
+  --file MyAgent.agent</code></pre>
+          </div>
+
+          <div class="command-card">
+            <h4>sf agentscript-parser validate</h4>
+            <p>Validate the syntax of an AgentScript file.</p>
+            <pre><code>sf agentscript-parser validate \
+  --file MyAgent.agent</code></pre>
+          </div>
+
+          <div class="command-card">
+            <h4>sf agentscript-parser list</h4>
+            <p>List topics, variables, actions, or messages from an agent.</p>
+            <pre><code>sf agentscript-parser list \
+  --file MyAgent.agent \
+  --type topics</code></pre>
+          </div>
+
+          <div class="command-card">
+            <h4>sf agentscript-parser query</h4>
+            <p>Query specific parts of the AST using dot-notation paths.</p>
+            <pre><code>sf agentscript-parser query \
+  --file MyAgent.agent \
+  --path config.agent_name</code></pre>
+          </div>
+
+          <div class="command-card">
+            <h4>sf agentscript-parser version</h4>
+            <p>Display the version of the AgentScript parser.</p>
+            <pre><code>sf agentscript-parser version</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="examples">
+        <h2>Usage Examples</h2>
+        
+        <h3>List all topics in an agent</h3>
+        <pre><code>$ sf agentscript-parser list --file CustomerService.agent --type topics
+
+Topics (3):
+  • start_agent: topic_selector
+  • support: Handle customer support requests
+  • billing: Process billing inquiries</code></pre>
+
+        <h3>Query configuration values</h3>
+        <pre><code>$ sf agentscript-parser query --file CustomerService.agent --path config.agent_name
+
+Query: config.agent_name
+
+Result: "CustomerService"</code></pre>
+
+        <h3>CI/CD Integration</h3>
+        <pre><code># Validate all .agent files in your repository
+find . -name "*.agent" -exec sf agentscript-parser validate --file {} \;
+
+# Extract agent names for documentation
+sf agentscript-parser query --file *.agent --path config.agent_name --format json</code></pre>
+      </section>
+
+      <section id="download">
+        <h2>Download & Resources</h2>
+        <div style="text-align: center; margin: 2rem 0;">
+          <a href="https://github.com/composable-delivery/sf-agentscript" class="download-button">
+            📚 View on GitHub
+          </a>
+          <a href="https://github.com/composable-delivery/sf-agentscript/blob/main/plugin-agentscript/README.md" class="download-button secondary">
+            📖 Full Documentation
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        <strong>AgentScript CLI Plugin</strong> |
+        <a href="https://github.com/composable-delivery/sf-agentscript">GitHub</a> |
+        <a href="https://github.com/composable-delivery/sf-agentscript/issues">Report Issues</a> |
+        <a href="https://github.com/composable-delivery/sf-agentscript/blob/main/LICENSE">MIT License</a>
+      </p>
+      <p style="margin-top: 1rem;">
+        Built with ❤️ using Rust, WebAssembly, and TypeScript
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

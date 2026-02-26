@@ -1,0 +1,17 @@
+id = "agentscript"
+name = "AgentScript"
+version = "0.0.1"
+schema_version = 1
+authors = ["Jason Lantz"]
+description = "Salesforce AgentScript language support, LSP, and MCP server"
+repository = "https://github.com/composable-delivery/sf-agentscript"
+
+[grammars.agentscript]
+repository = "file:///Users/jasonlantz/dev/0-busbar/sf-agentscript/tree-sitter-agentscript"
+rev = "fbb3f5b6784ba25075555ed4bf1982646b8bb372"
+
+[language_servers.agentscript-lsp]
+name = "AgentScript LSP"
+languages = ["AgentScript"]
+
+[context_servers.aslab-mcp]

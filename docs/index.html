@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentScript Editor Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+    .header {
+      padding: 0.75rem 1.5rem;
+      background: #252526;
+      border-bottom: 1px solid #3c3c3c;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .header h1 { font-size: 1.1rem; font-weight: 500; }
+    .header-controls { display: flex; gap: 0.75rem; align-items: center; }
+    .header select, .header button, .header label {
+      background: #3c3c3c;
+      color: #d4d4d4;
+      border: 1px solid #5a5a5a;
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .header button:hover, .header label:hover { background: #4a4a4a; }
+    .header a.header-button:hover { opacity: 0.8; }
+    .header label { display: flex; align-items: center; gap: 0.4rem; }
+    .header input[type="checkbox"] { cursor: pointer; }
+    .wasm-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: #4a2d2d;
+      color: #f48771;
+    }
+    .wasm-badge.loaded {
+      background: #2d4a2d;
+      color: #4ec9b0;
+    }
+    .container {
+      display: flex;
+      height: calc(100vh - 52px);
+    }
+    #editor {
+      flex: 1;
+      height: 100%;
+    }
+    .sidebar {
+      width: 420px;
+      background: #252526;
+      border-left: 1px solid #3c3c3c;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-section {
+      padding: 0.75rem;
+      border-bottom: 1px solid #3c3c3c;
+    }
+    .sidebar-section.ast-section {
+      flex: 1;
+      border-bottom: none;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .sidebar h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #888;
+      letter-spacing: 0.05em;
+    }
+    .ast-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .ast-controls select, .ast-controls button {
+      background: #3c3c3c;
+      color: #d4d4d4;
+      border: 1px solid #4a4a4a;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      cursor: pointer;
+    }
+    .ast-controls button:hover { background: #4a4a4a; }
+    #ast-tree {
+      flex: 1;
+      overflow: auto;
+      background: #1e1e1e;
+      border-radius: 4px;
+      padding: 0.5rem;
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      font-size: 0.72rem;
+      line-height: 1.5;
+    }
+    .status {
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .status.success { background: #2d4a2d; color: #4ec9b0; }
+    .status.error { background: #4a2d2d; color: #f48771; }
+    .status.info { background: #2d3a4a; color: #6cb6ff; }
+    .stats {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 0.4rem;
+    }
+    .stats span { display: flex; align-items: center; gap: 0.2rem; }
+
+    /* AST Tree Styles */
+    .ast-node {
+      margin-left: 1rem;
+      border-left: 1px solid #3c3c3c;
+      padding-left: 0.5rem;
+    }
+    .ast-node.root { margin-left: 0; border-left: none; padding-left: 0; }
+    .ast-key {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.1rem 0;
+      border-radius: 2px;
+    }
+    .ast-key:hover { background: #2a2d2e; }
+    .ast-key.highlighted { background: #264f78; }
+    .ast-toggle {
+      width: 1rem;
+      text-align: center;
+      color: #888;
+      font-size: 0.6rem;
+    }
+    .ast-name { color: #9cdcfe; }
+    .ast-tag {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 2px;
+      margin-left: 0.3rem;
+    }
+    .ast-tag.config { background: #3d5a80; color: #98c1d9; }
+    .ast-tag.system { background: #5a3d80; color: #c198d9; }
+    .ast-tag.variables { background: #3d8055; color: #98d9b1; }
+    .ast-tag.topic { background: #805a3d; color: #d9b198; }
+    .ast-tag.start_agent { background: #80553d; color: #d9a898; }
+    .ast-tag.reasoning { background: #3d6680; color: #98bdd9; }
+    .ast-tag.actions { background: #663d80; color: #b898d9; }
+    .ast-tag.array { background: #4a4a4a; color: #aaa; }
+    .ast-tag.string { background: #3d4a3d; color: #b5cea8; }
+    .ast-tag.number { background: #4a4a3d; color: #d9d998; }
+    .ast-tag.boolean { background: #3d3d4a; color: #569cd6; }
+    .ast-tag.span { background: #3a3a3a; color: #777; font-size: 0.55rem; }
+    .ast-value { color: #ce9178; margin-left: 0.3rem; }
+    .ast-value.string { color: #ce9178; }
+    .ast-value.number { color: #b5cea8; }
+    .ast-value.boolean { color: #569cd6; }
+    .ast-value.null { color: #888; font-style: italic; }
+    .ast-children { display: block; }
+    .ast-children.collapsed { display: none; }
+    .ast-count { color: #666; font-size: 0.6rem; margin-left: 0.2rem; }
+
+    /* Benchmark Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #252526;
+      border: 1px solid #3c3c3c;
+      border-radius: 8px;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow: auto;
+      padding: 1.5rem;
+    }
+    .modal h3 {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      color: #d4d4d4;
+    }
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: #d4d4d4; }
+    .bench-results {
+      font-family: 'SF Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .bench-row {
+      display: grid;
+      grid-template-columns: 200px 80px 80px 80px;
+      gap: 0.5rem;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #3c3c3c;
+    }
+    .bench-row.header {
+      font-weight: bold;
+      color: #888;
+      border-bottom: 2px solid #3c3c3c;
+    }
+    .bench-row .name { color: #9cdcfe; }
+    .bench-row .time { color: #b5cea8; text-align: right; }
+    .bench-row .size { color: #888; text-align: right; }
+    .bench-summary {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid #3c3c3c;
+      color: #4ec9b0;
+    }
+    .bench-progress {
+      color: #888;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>AgentScript Editor</h1>
+    <div class="header-controls">
+      <select id="recipe-select">
+        <option value="">-- Load Recipe --</option>
+        <optgroup label="Language Essentials">
+          <option value="HelloWorld">Hello World</option>
+          <option value="LanguageSettings">Language Settings</option>
+          <option value="SystemInstructionOverrides">System Instruction Overrides</option>
+          <option value="TemplateExpressions">Template Expressions</option>
+          <option value="VariableManagement">Variable Management</option>
+        </optgroup>
+        <optgroup label="Action Configuration">
+          <option value="ActionCallbacks">Action Callbacks</option>
+          <option value="ActionDefinitions">Action Definitions</option>
+          <option value="ActionDescriptionOverrides">Action Description Overrides</option>
+          <option value="AdvancedInputBindings">Advanced Input Bindings</option>
+          <option value="PromptTemplateActions">Prompt Template Actions</option>
+        </optgroup>
+        <optgroup label="Reasoning Mechanics">
+          <option value="BeforeAfterReasoning">Before/After Reasoning</option>
+          <option value="ReasoningInstructions">Reasoning Instructions</option>
+        </optgroup>
+        <optgroup label="Architectural Patterns">
+          <option value="AdvancedReasoningPatterns">Advanced Reasoning Patterns</option>
+          <option value="BidirectionalNavigation">Bidirectional Navigation</option>
+          <option value="ErrorHandling">Error Handling</option>
+          <option value="ExternalAPIIntegration">External API Integration</option>
+          <option value="MultiStepWorkflows">Multi-Step Workflows</option>
+          <option value="MultiTopicNavigation">Multi-Topic Navigation</option>
+          <option value="SimpleQA">Simple Q&A</option>
+        </optgroup>
+        <optgroup label="Future Recipes">
+          <option value="ComplexStateManagement">Complex State Management</option>
+          <option value="ConditionalLogicPatterns">Conditional Logic Patterns</option>
+          <option value="ContextHandling">Context Handling</option>
+          <option value="CustomerServiceAgent">Customer Service Agent</option>
+          <option value="DynamicActionRouting">Dynamic Action Routing</option>
+          <option value="EscalationPatterns">Escalation Patterns</option>
+          <option value="InstructionActionReferences">Instruction Action References</option>
+          <option value="MultiTopicOrchestration">Multi-Topic Orchestration</option>
+          <option value="SafetyAndGuardrails">Safety And Guardrails</option>
+          <option value="TopicDelegation">Topic Delegation</option>
+        </optgroup>
+      </select>
+      <label title="Auto-scroll AST to match cursor position">
+        <input type="checkbox" id="follow-cursor" checked> Follow
+      </label>
+      <button id="run-benchmark" title="Run WASM benchmark on all recipes">Bench</button>
+      <a href="plugin.html" class="header-button" title="Download SF CLI Plugin" style="background:#10b981;color:white;padding:0.4rem 0.75rem;border-radius:4px;text-decoration:none;font-size:0.8rem;">📦 CLI Plugin</a>
+      <a href="api/sf_agentscript/index.html" target="_blank" class="header-button" title="View Parser API Documentation" style="background:#3c3c3c;color:#d4d4d4;padding:0.4rem 0.75rem;border-radius:4px;text-decoration:none;font-size:0.8rem;border:1px solid #5a5a5a;">📚 Parser Docs</a>
+      <span id="wasm-badge" class="wasm-badge">WASM: Loading...</span>
+      <select id="theme-select">
+        <option value="agentscript-dark">Dark</option>
+        <option value="agentscript-light">Light</option>
+      </select>
+    </div>
+  </div>
+  <div class="container">
+    <div id="editor"></div>
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h2>Parse Status</h2>
+        <div id="status" class="status info">Initializing...</div>
+        <div id="stats" class="stats"></div>
+      </div>
+      <div class="sidebar-section ast-section">
+        <div class="sidebar-header">
+          <h2>AST Explorer</h2>
+          <div class="ast-controls">
+            <select id="ast-filter" title="Filter AST by type">
+              <option value="">All nodes</option>
+              <option value="config">Config</option>
+              <option value="system">System</option>
+              <option value="variables">Variables</option>
+              <option value="start_agent">Start Agent</option>
+              <option value="topics">Topics</option>
+              <option value="reasoning">Reasoning</option>
+              <option value="actions">Actions</option>
+            </select>
+            <button id="expand-all" title="Expand all nodes">+</button>
+            <button id="collapse-all" title="Collapse all nodes">-</button>
+          </div>
+        </div>
+        <div id="ast-tree">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benchmark Modal -->
+  <div id="bench-modal" class="modal-overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="document.getElementById('bench-modal').classList.remove('active')">&times;</button>
+      <h3>WASM Benchmark Results</h3>
+      <div id="bench-content">
+        <div class="bench-progress">Click "Run Benchmark" to start...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js" 
+          integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb" 
+          crossorigin="anonymous"></script>
+  <script type="module">
+    // WASM Parser Module
+    let parseAgentToJson = null;
+
+    // Current AST for cursor tracking
+    let currentAst = null;
+    let currentSource = '';
+
+    // Documentation for hover info
+    const hoverDocs = {
+      // Block keywords
+      config: { label: 'config', detail: 'Agent Configuration Block', documentation: 'Defines agent metadata including name, label, and description.' },
+      system: { label: 'system', detail: 'System Configuration Block', documentation: 'Global settings including instructions and messages (welcome, error).' },
+      variables: { label: 'variables', detail: 'Variables Block', documentation: 'Define agent state variables. Can be mutable or linked.' },
+      topic: { label: 'topic', detail: 'Topic Block', documentation: 'Defines a conversation topic with reasoning and actions.' },
+      start_agent: { label: 'start_agent', detail: 'Entry Point Block', documentation: 'The initial topic when the agent starts. Routes to other topics.' },
+      reasoning: { label: 'reasoning', detail: 'Reasoning Block', documentation: 'Contains instructions and available actions for the LLM.' },
+      actions: { label: 'actions', detail: 'Actions Block', documentation: 'Defines callable actions with inputs, outputs, and targets.' },
+      inputs: { label: 'inputs', detail: 'Action Inputs', documentation: 'Parameters that the action accepts.' },
+      outputs: { label: 'outputs', detail: 'Action Outputs', documentation: 'Values returned by the action.' },
+      before_reasoning: { label: 'before_reasoning', detail: 'Pre-Reasoning Hook', documentation: 'Actions to run before the reasoning phase.' },
+      after_reasoning: { label: 'after_reasoning', detail: 'Post-Reasoning Hook', documentation: 'Actions to run after the reasoning phase.' },
+      // Control keywords
+      if: { label: 'if', detail: 'Conditional', documentation: 'Conditionally include instructions based on expression.' },
+      else: { label: 'else', detail: 'Else Branch', documentation: 'Alternative branch when condition is false.' },
+      when: { label: 'when', detail: 'Availability Condition', documentation: 'Makes action available only when condition is true.' },
+      available: { label: 'available', detail: 'Action Availability', documentation: 'Used with "when" to control action visibility.' },
+      with: { label: 'with', detail: 'Input Binding', documentation: 'Binds values to action inputs.' },
+      set: { label: 'set', detail: 'Output Binding', documentation: 'Stores action output in a variable.' },
+      run: { label: 'run', detail: 'Action Execution', documentation: 'Executes an action inline within instructions.' },
+      to: { label: 'to', detail: 'Transition Target', documentation: 'Specifies the target topic for transition.' },
+      transition: { label: 'transition', detail: 'Topic Transition', documentation: 'Navigates to another topic.' },
+      // Types
+      string: { label: 'string', detail: 'String Type', documentation: 'Text value type.' },
+      number: { label: 'number', detail: 'Number Type', documentation: 'Numeric value (integer or float).' },
+      boolean: { label: 'boolean', detail: 'Boolean Type', documentation: 'True or False value.' },
+      object: { label: 'object', detail: 'Object Type', documentation: 'Complex structured data type.' },
+      list: { label: 'list', detail: 'List Type', documentation: 'Array of values. Use list<type> for typed lists.' },
+      date: { label: 'date', detail: 'Date Type', documentation: 'Calendar date value.' },
+      datetime: { label: 'datetime', detail: 'DateTime Type', documentation: 'Date and time value.' },
+      id: { label: 'id', detail: 'ID Type', documentation: 'Salesforce record identifier.' },
+      // Modifiers
+      mutable: { label: 'mutable', detail: 'Mutable Variable', documentation: 'Variable that can be changed during execution.' },
+      linked: { label: 'linked', detail: 'Linked Variable', documentation: 'Variable linked to external data source.' },
+      // References
+      '@variables': { label: '@variables', detail: 'Variables Reference', documentation: 'Access agent variables. E.g., @variables.user_name' },
+      '@actions': { label: '@actions', detail: 'Actions Reference', documentation: 'Reference defined actions. E.g., @actions.lookup_user' },
+      '@outputs': { label: '@outputs', detail: 'Outputs Reference', documentation: 'Access action output values. E.g., @outputs.result' },
+      '@topic': { label: '@topic', detail: 'Topic Reference', documentation: 'Reference topics for transitions. E.g., @topic.support' },
+      '@utils': { label: '@utils', detail: 'Utilities Reference', documentation: 'Built-in utilities like @utils.transition, @utils.escalate' },
+    };
+
+    // Completions
+    const completionItems = [
+      // Block keywords
+      { label: 'config:', kind: 'Keyword', insertText: 'config:\n   agent_name: "${1:AgentName}"\n   description: "${2:Description}"', documentation: 'Agent configuration block' },
+      { label: 'system:', kind: 'Keyword', insertText: 'system:\n   instructions: "${1:Instructions}"\n   messages:\n      welcome: "${2:Welcome message}"\n      error: "${3:Error message}"', documentation: 'System configuration block' },
+      { label: 'variables:', kind: 'Keyword', insertText: 'variables:\n   ${1:var_name}: mutable ${2:string} = ${3:""}', documentation: 'Variables block' },
+      { label: 'topic', kind: 'Keyword', insertText: 'topic ${1:name}:\n   description: "${2:Description}"\n\n   reasoning:\n      instructions:|', documentation: 'Topic block' },
+      { label: 'start_agent', kind: 'Keyword', insertText: 'start_agent ${1:topic_selector}:\n   description: "${2:Entry point}"\n\n   reasoning:', documentation: 'Entry point block' },
+      { label: 'reasoning:', kind: 'Keyword', insertText: 'reasoning:\n   instructions:|', documentation: 'Reasoning block' },
+      { label: 'actions:', kind: 'Keyword', insertText: 'actions:\n   ${1:action_name}:\n      description: "${2:Description}"\n      target: "${3:flow://Flow}"', documentation: 'Actions block' },
+      // Field keywords
+      { label: 'description:', kind: 'Property', insertText: 'description: "${1:Description}"', documentation: 'Description field' },
+      { label: 'instructions:', kind: 'Property', insertText: 'instructions:|', documentation: 'Instructions field' },
+      { label: 'target:', kind: 'Property', insertText: 'target: "${1:flow://FlowName}"', documentation: 'Action target' },
+      { label: 'inputs:', kind: 'Property', insertText: 'inputs:\n   ${1:param}: ${2:string}', documentation: 'Action inputs' },
+      { label: 'outputs:', kind: 'Property', insertText: 'outputs:\n   ${1:param}: ${2:string}', documentation: 'Action outputs' },
+      // Control
+      { label: 'available when', kind: 'Keyword', insertText: 'available when ${1:@variables.condition} == ${2:True}', documentation: 'Action availability condition' },
+      { label: 'with', kind: 'Keyword', insertText: 'with ${1:param} = ${2:@variables.value}', documentation: 'Input binding' },
+      { label: 'set', kind: 'Keyword', insertText: 'set ${1:@variables.result} = ${2:@outputs.value}', documentation: 'Output binding' },
+      { label: 'if', kind: 'Keyword', insertText: 'if ${1:@variables.condition}:', documentation: 'Conditional instruction' },
+      // Types
+      { label: 'string', kind: 'Type', insertText: 'string', documentation: 'String type' },
+      { label: 'number', kind: 'Type', insertText: 'number', documentation: 'Number type' },
+      { label: 'boolean', kind: 'Type', insertText: 'boolean', documentation: 'Boolean type' },
+      { label: 'object', kind: 'Type', insertText: 'object', documentation: 'Object type' },
+      { label: 'list', kind: 'Type', insertText: 'list<${1:string}>', documentation: 'List type' },
+      // Modifiers
+      { label: 'mutable', kind: 'Keyword', insertText: 'mutable ', documentation: 'Mutable variable modifier' },
+      { label: 'linked', kind: 'Keyword', insertText: 'linked ', documentation: 'Linked variable modifier' },
+      // References
+      { label: '@variables', kind: 'Variable', insertText: '@variables.${1:name}', documentation: 'Reference a variable' },
+      { label: '@actions', kind: 'Variable', insertText: '@actions.${1:name}', documentation: 'Reference an action' },
+      { label: '@outputs', kind: 'Variable', insertText: '@outputs.${1:name}', documentation: 'Reference an output' },
+      { label: '@topic', kind: 'Variable', insertText: '@topic.${1:name}', documentation: 'Reference a topic' },
+      { label: '@utils.transition', kind: 'Function', insertText: '@utils.transition to @topic.${1:name}', documentation: 'Transition to another topic' },
+      { label: '@utils.escalate', kind: 'Function', insertText: '@utils.escalate', documentation: 'Escalate to human agent' },
+      // Constants
+      { label: 'True', kind: 'Constant', insertText: 'True', documentation: 'Boolean true' },
+      { label: 'False', kind: 'Constant', insertText: 'False', documentation: 'Boolean false' },
+      { label: 'None', kind: 'Constant', insertText: 'None', documentation: 'Null value' },
+    ];
+
+    // Try to load WASM module
+    async function loadWasmParser() {
+      try {
+        const module = await import('./sf_agentscript.js');
+        await module.default();
+        parseAgentToJson = module.parse_agent_to_json;
+        document.getElementById('wasm-badge').textContent = 'WASM: Loaded';
+        document.getElementById('wasm-badge').classList.add('loaded');
+        return true;
+      } catch (e) {
+        console.log('WASM module not available:', e.message);
+        document.getElementById('wasm-badge').textContent = 'WASM: Not loaded';
+        return false;
+      }
+    }
+
+    // Monaco language configuration
+    const monarchTokens = {
+      keywords: ['config', 'system', 'variables', 'topic', 'start_agent', 'reasoning', 'actions', 'inputs', 'outputs', 'connections', 'language', 'knowledge', 'before_reasoning', 'after_reasoning'],
+      controlKeywords: ['if', 'else', 'and', 'or', 'not', 'when', 'available', 'with', 'set', 'run', 'to', 'as', 'is', 'transition'],
+      fieldKeywords: ['description', 'label', 'target', 'source', 'instructions', 'messages', 'welcome', 'error', 'agent_name', 'agent_label'],
+      types: ['string', 'number', 'boolean', 'object', 'list', 'date', 'timestamp', 'currency', 'id', 'datetime', 'time', 'integer', 'long'],
+      modifiers: ['mutable', 'linked'],
+      constants: ['True', 'False', 'None'],
+      tokenizer: {
+        root: [
+          [/#.*$/, 'comment'],
+          [/\{!/, { token: 'delimiter.bracket', next: '@templateExpr' }],
+          [/"([^"\\]|\\.)*$/, 'string.invalid'],
+          [/"/, { token: 'string.quote', next: '@string' }],
+          [/\d+\.\d+/, 'number.float'],
+          [/\d+/, 'number'],
+          [/@(variables|actions|outputs|topic|utils)/, 'variable.predefined'],
+          [/@\w+/, 'variable'],
+          [/:\|/, 'keyword.operator'],
+          [/:->/, 'keyword.operator'],
+          [/->/, 'keyword.operator'],
+          [/\|/, 'keyword.operator'],
+          [/[a-zA-Z_]\w*/, {
+            cases: {
+              '@keywords': 'keyword',
+              '@controlKeywords': 'keyword.control',
+              '@fieldKeywords': 'keyword.field',
+              '@types': 'type',
+              '@modifiers': 'keyword.modifier',
+              '@constants': 'constant',
+              '@default': 'identifier'
+            }
+          }],
+          [/[=<>!]+/, 'operator'],
+          [/\.\.\./, 'operator'],
+          [/:/, 'delimiter'],
+          [/\./, 'delimiter'],
+          [/\s+/, 'white']
+        ],
+        string: [
+          [/\{!/, { token: 'delimiter.bracket', next: '@stringTemplateExpr' }],
+          [/[^\\"]+/, 'string'],
+          [/\\./, 'string.escape'],
+          [/"/, { token: 'string.quote', next: '@pop' }]
+        ],
+        templateExpr: [
+          [/@\w+/, 'variable.predefined'],
+          [/\w+/, 'identifier'],
+          [/\./, 'delimiter'],
+          [/\}/, { token: 'delimiter.bracket', next: '@pop' }]
+        ],
+        stringTemplateExpr: [
+          [/@\w+/, 'variable.predefined'],
+          [/\w+/, 'identifier'],
+          [/\./, 'delimiter'],
+          [/\}/, { token: 'delimiter.bracket', next: '@string' }]
+        ]
+      }
+    };
+
+    const sampleCode = `# Sample AgentScript Agent
+config:
+   agent_name: "CustomerService"
+   agent_label: "Customer Service Agent"
+   description: "Handles customer inquiries and support"
+
+variables:
+   customer_name: mutable string = ""
+      description: "The customer's name"
+   issue_resolved: mutable boolean = False
+      description: "Whether the issue has been resolved"
+
+system:
+   instructions: "You are a helpful customer service agent."
+   messages:
+      welcome: "Hello! How can I help you today?"
+      error: "I apologize, something went wrong."
+
+start_agent topic_selector:
+   description: "Route customer to appropriate topic"
+
+   reasoning:
+      instructions:|
+         Determine the best topic based on the customer's message.
+      actions:
+         go_to_support: @utils.transition to @topic.support
+            description: "Handle support requests"
+
+topic support:
+   label: "Customer Support"
+   description: "Handle customer support requests"
+
+   reasoning:
+      instructions: ->
+         | Help the customer with their issue.
+         | Be polite and professional.
+         if @variables.issue_resolved == False:
+            | Ask clarifying questions to understand the problem.
+      actions:
+         resolve_issue: @actions.resolve_issue
+            available when @variables.issue_resolved == False
+            with customer_name = @variables.customer_name
+            set @variables.issue_resolved = @outputs.success
+
+   actions:
+      resolve_issue:
+         description: "Mark the issue as resolved"
+         inputs:
+            customer_name: string
+               description: "Name of the customer"
+         outputs:
+            success: boolean
+               description: "Whether resolution succeeded"
+         target: "flow://ResolveCustomerIssue"
+`;
+
+    // AST Tree Rendering
+    function renderAstTree(ast, filter = '') {
+      if (!ast) return '<span style="color:#888">No AST available</span>';
+
+      const filtered = filter ? filterAst(ast, filter) : ast;
+      return renderNode(filtered, 'root', true, 0);
+    }
+
+    function filterAst(ast, filter) {
+      if (filter === 'topics') return { topics: ast.topics };
+      if (filter === 'reasoning') {
+        const result = {};
+        if (ast.start_agent?.node?.reasoning) result.start_agent_reasoning = ast.start_agent.node.reasoning;
+        if (ast.topics) {
+          result.topic_reasoning = ast.topics.map(t => ({
+            name: t.node.name?.node,
+            reasoning: t.node.reasoning
+          })).filter(t => t.reasoning);
+        }
+        return result;
+      }
+      if (filter === 'actions') {
+        const result = {};
+        if (ast.topics) {
+          result.topic_actions = ast.topics.map(t => ({
+            name: t.node.name?.node,
+            actions: t.node.actions
+          })).filter(t => t.actions);
+        }
+        return result;
+      }
+      if (ast[filter]) return { [filter]: ast[filter] };
+      return ast;
+    }
+
+    function renderNode(obj, key, isRoot = false, depth = 0) {
+      if (obj === null || obj === undefined) {
+        return `<span class="ast-value null">null</span>`;
+      }
+
+      const type = typeof obj;
+
+      if (type === 'string') {
+        const truncated = obj.length > 50 ? obj.slice(0, 50) + '...' : obj;
+        return `<span class="ast-value string">"${escapeHtml(truncated)}"</span>`;
+      }
+      if (type === 'number') {
+        return `<span class="ast-value number">${obj}</span>`;
+      }
+      if (type === 'boolean') {
+        return `<span class="ast-value boolean">${obj}</span>`;
+      }
+
+      const isArray = Array.isArray(obj);
+      const entries = isArray ? obj.map((v, i) => [i, v]) : Object.entries(obj);
+
+      if (entries.length === 0) {
+        return isArray ? '<span class="ast-value null">[]</span>' : '<span class="ast-value null">{}</span>';
+      }
+
+      // Detect if this is a Spanned node
+      const isSpanned = !isArray && obj.node !== undefined && obj.span !== undefined;
+
+      // Get tag type for coloring
+      const tagType = getTagType(key, obj);
+      const tagHtml = tagType ? `<span class="ast-tag ${tagType}">${tagType}</span>` : '';
+
+      // For spanned nodes, show span info compactly
+      let spanInfo = '';
+      if (isSpanned && obj.span) {
+        spanInfo = `<span class="ast-tag span">${obj.span.start}-${obj.span.end}</span>`;
+      }
+
+      const id = `ast-${depth}-${key}-${Math.random().toString(36).slice(2, 8)}`;
+      const collapsed = depth > 2 ? 'collapsed' : '';
+      const toggle = depth > 2 ? '>' : 'v';
+      const countText = isArray ? `[${entries.length}]` : '';
+
+      let html = `<div class="ast-node ${isRoot ? 'root' : ''}" data-span-start="${obj.span?.start ?? ''}" data-span-end="${obj.span?.end ?? ''}">`;
+
+      if (!isRoot || isArray) {
+        html += `<div class="ast-key" onclick="toggleAstNode('${id}')">`;
+        html += `<span class="ast-toggle" id="${id}-toggle">${toggle}</span>`;
+        html += `<span class="ast-name">${isArray ? key : key}</span>`;
+        html += tagHtml;
+        html += spanInfo;
+        if (countText) html += `<span class="ast-count">${countText}</span>`;
+        html += `</div>`;
+      }
+
+      html += `<div class="ast-children ${collapsed}" id="${id}">`;
+
+      for (const [k, v] of entries) {
+        // Skip rendering span separately if we already showed it
+        if (k === 'span' && isSpanned) continue;
+
+        const childType = typeof v;
+        if (v === null || v === undefined || childType === 'string' || childType === 'number' || childType === 'boolean') {
+          html += `<div class="ast-node"><span class="ast-name">${k}:</span> ${renderNode(v, k, false, depth + 1)}</div>`;
+        } else {
+          html += renderNode(v, k, false, depth + 1);
+        }
+      }
+
+      html += `</div></div>`;
+      return html;
+    }
+
+    function getTagType(key, obj) {
+      const keyLower = String(key).toLowerCase();
+      if (['config', 'system', 'variables', 'topics', 'start_agent', 'reasoning', 'actions'].includes(keyLower)) {
+        return keyLower === 'topics' ? 'topic' : keyLower;
+      }
+      if (obj && typeof obj === 'object') {
+        if (obj.reasoning) return 'topic';
+        if (obj.instructions && obj.actions) return 'reasoning';
+      }
+      return '';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Global toggle function
+    window.toggleAstNode = function(id) {
+      const el = document.getElementById(id);
+      const toggle = document.getElementById(id + '-toggle');
+      if (el && toggle) {
+        el.classList.toggle('collapsed');
+        toggle.textContent = el.classList.contains('collapsed') ? '>' : 'v';
+      }
+    };
+
+    // Find AST node at cursor position
+    function findNodeAtPosition(ast, offset, source) {
+      let bestMatch = null;
+      let bestSize = Infinity;
+
+      function search(obj, path = []) {
+        if (!obj || typeof obj !== 'object') return;
+
+        if (obj.span && typeof obj.span.start === 'number' && typeof obj.span.end === 'number') {
+          if (offset >= obj.span.start && offset <= obj.span.end) {
+            const size = obj.span.end - obj.span.start;
+            if (size < bestSize) {
+              bestSize = size;
+              bestMatch = { node: obj, path };
+            }
+          }
+        }
+
+        if (Array.isArray(obj)) {
+          obj.forEach((item, i) => search(item, [...path, i]));
+        } else {
+          for (const [k, v] of Object.entries(obj)) {
+            search(v, [...path, k]);
+          }
+        }
+      }
+
+      search(ast);
+      return bestMatch;
+    }
+
+    // Highlight AST node
+    function highlightAstNode(spanStart, spanEnd) {
+      // Remove previous highlights
+      document.querySelectorAll('.ast-key.highlighted').forEach(el => {
+        el.classList.remove('highlighted');
+      });
+
+      if (spanStart === undefined) return;
+
+      // Find and highlight matching node
+      const nodes = document.querySelectorAll('.ast-node[data-span-start]');
+      let bestMatch = null;
+      let bestSize = Infinity;
+
+      nodes.forEach(node => {
+        const start = parseInt(node.dataset.spanStart);
+        const end = parseInt(node.dataset.spanEnd);
+        if (!isNaN(start) && !isNaN(end) && start <= spanStart && end >= spanEnd) {
+          const size = end - start;
+          if (size < bestSize) {
+            bestSize = size;
+            bestMatch = node;
+          }
+        }
+      });
+
+      if (bestMatch) {
+        const key = bestMatch.querySelector('.ast-key');
+        if (key) {
+          key.classList.add('highlighted');
+          // Expand parents
+          let parent = bestMatch.parentElement;
+          while (parent) {
+            if (parent.classList.contains('ast-children') && parent.classList.contains('collapsed')) {
+              parent.classList.remove('collapsed');
+              const toggle = document.getElementById(parent.id + '-toggle');
+              if (toggle) toggle.textContent = 'v';
+            }
+            parent = parent.parentElement;
+          }
+          // Scroll into view if follow is enabled
+          if (document.getElementById('follow-cursor').checked) {
+            key.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
+    }
+
+    // Initialize
+    loadWasmParser().then(wasmLoaded => {
+      require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+
+      require(['vs/editor/editor.main'], function() {
+        // Register language
+        monaco.languages.register({ id: 'agentscript', extensions: ['.agent'] });
+        monaco.languages.setMonarchTokensProvider('agentscript', monarchTokens);
+
+        // Register hover provider
+        monaco.languages.registerHoverProvider('agentscript', {
+          provideHover: (model, position) => {
+            const word = model.getWordAtPosition(position);
+            if (!word) return null;
+
+            const line = model.getLineContent(position.lineNumber);
+            const beforeWord = line.slice(0, word.startColumn - 1);
+
+            // Check for @namespace references
+            let key = word.word;
+            if (beforeWord.endsWith('@')) {
+              key = '@' + word.word;
+            }
+
+            const doc = hoverDocs[key] || hoverDocs[key.toLowerCase()];
+            if (doc) {
+              return {
+                range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                contents: [
+                  { value: `**${doc.label}**` },
+                  { value: `*${doc.detail}*` },
+                  { value: doc.documentation }
+                ]
+              };
+            }
+            return null;
+          }
+        });
+
+        // Register completion provider
+        monaco.languages.registerCompletionItemProvider('agentscript', {
+          provideCompletionItems: (model, position) => {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: word.startColumn,
+              endColumn: word.endColumn
+            };
+
+            const kindMap = {
+              'Keyword': monaco.languages.CompletionItemKind.Keyword,
+              'Property': monaco.languages.CompletionItemKind.Property,
+              'Type': monaco.languages.CompletionItemKind.Class,
+              'Variable': monaco.languages.CompletionItemKind.Variable,
+              'Function': monaco.languages.CompletionItemKind.Function,
+              'Constant': monaco.languages.CompletionItemKind.Constant
+            };
+
+            return {
+              suggestions: completionItems.map(item => ({
+                label: item.label,
+                kind: kindMap[item.kind] || monaco.languages.CompletionItemKind.Text,
+                insertText: item.insertText,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: item.documentation,
+                range
+              }))
+            };
+          }
+        });
+
+        // Define themes
+        monaco.editor.defineTheme('agentscript-dark', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+            { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
+            { token: 'keyword.control', foreground: 'C586C0' },
+            { token: 'keyword.field', foreground: '9CDCFE' },
+            { token: 'keyword.modifier', foreground: '569CD6', fontStyle: 'italic' },
+            { token: 'type', foreground: '4EC9B0' },
+            { token: 'string', foreground: 'CE9178' },
+            { token: 'number', foreground: 'B5CEA8' },
+            { token: 'constant', foreground: '569CD6' },
+            { token: 'variable.predefined', foreground: '4FC1FF' },
+            { token: 'delimiter.bracket', foreground: 'FFD700' },
+            { token: 'identifier', foreground: 'DCDCAA' }
+          ],
+          colors: { 'editor.background': '#1E1E1E' }
+        });
+
+        monaco.editor.defineTheme('agentscript-light', {
+          base: 'vs',
+          inherit: true,
+          rules: [
+            { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+            { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
+            { token: 'keyword.control', foreground: 'AF00DB' },
+            { token: 'keyword.field', foreground: '001080' },
+            { token: 'type', foreground: '267F99' },
+            { token: 'string', foreground: 'A31515' },
+            { token: 'number', foreground: '098658' },
+            { token: 'constant', foreground: '0000FF' },
+            { token: 'variable.predefined', foreground: '0070C1' },
+            { token: 'delimiter.bracket', foreground: 'B8860B' },
+            { token: 'identifier', foreground: '795E26' }
+          ],
+          colors: { 'editor.background': '#FFFFFF' }
+        });
+
+        // Create editor
+        const editor = monaco.editor.create(document.getElementById('editor'), {
+          value: sampleCode,
+          language: 'agentscript',
+          theme: 'agentscript-dark',
+          minimap: { enabled: false },
+          fontSize: 14,
+          tabSize: 3,
+          insertSpaces: true,
+          automaticLayout: true
+        });
+
+        // Theme switcher
+        document.getElementById('theme-select').addEventListener('change', (e) => {
+          monaco.editor.setTheme(e.target.value);
+          document.body.style.background = e.target.value.includes('light') ? '#f3f3f3' : '#1e1e1e';
+          document.body.style.color = e.target.value.includes('light') ? '#1e1e1e' : '#d4d4d4';
+        });
+
+        // Recipe loader
+        document.getElementById('recipe-select').addEventListener('change', async (e) => {
+          const recipeName = e.target.value;
+          if (!recipeName) return;
+          try {
+            const response = await fetch(`./recipes/${recipeName}.agent`);
+            if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
+            const code = await response.text();
+            editor.setValue(code);
+          } catch (err) {
+            console.error('Failed to load recipe:', err);
+            statusEl.textContent = `Failed to load recipe: ${err.message}`;
+            statusEl.className = 'status error';
+          }
+        });
+
+        // AST filter
+        document.getElementById('ast-filter').addEventListener('change', (e) => {
+          if (currentAst) {
+            astTree.innerHTML = renderAstTree(currentAst, e.target.value);
+          }
+        });
+
+        // Expand/collapse all
+        document.getElementById('expand-all').addEventListener('click', () => {
+          document.querySelectorAll('.ast-children.collapsed').forEach(el => {
+            el.classList.remove('collapsed');
+            const toggle = document.getElementById(el.id + '-toggle');
+            if (toggle) toggle.textContent = 'v';
+          });
+        });
+
+        document.getElementById('collapse-all').addEventListener('click', () => {
+          document.querySelectorAll('.ast-children:not(.collapsed)').forEach(el => {
+            if (el.id) {
+              el.classList.add('collapsed');
+              const toggle = document.getElementById(el.id + '-toggle');
+              if (toggle) toggle.textContent = '>';
+            }
+          });
+        });
+
+        // Benchmark runner
+        document.getElementById('run-benchmark').addEventListener('click', async () => {
+          if (!parseAgentToJson) {
+            alert('WASM module not loaded. Please load from GitHub Pages.');
+            return;
+          }
+
+          const modal = document.getElementById('bench-modal');
+          const content = document.getElementById('bench-content');
+          modal.classList.add('active');
+          content.innerHTML = '<div class="bench-progress">Loading recipes...</div>';
+
+          // List of all recipes
+          const recipeNames = [
+            'HelloWorld', 'LanguageSettings', 'SystemInstructionOverrides', 'TemplateExpressions', 'VariableManagement',
+            'ActionCallbacks', 'ActionDefinitions', 'ActionDescriptionOverrides', 'AdvancedInputBindings', 'PromptTemplateActions',
+            'BeforeAfterReasoning', 'ReasoningInstructions',
+            'AdvancedReasoningPatterns', 'BidirectionalNavigation', 'ErrorHandling', 'ExternalAPIIntegration', 'MultiStepWorkflows', 'MultiTopicNavigation', 'SimpleQA',
+            'ComplexStateManagement', 'ConditionalLogicPatterns', 'ContextHandling', 'CustomerServiceAgent', 'DynamicActionRouting', 'EscalationPatterns', 'InstructionActionReferences', 'MultiTopicOrchestration', 'SafetyAndGuardrails', 'TopicDelegation'
+          ];
+
+          // Load all recipes
+          const recipes = [];
+          for (const name of recipeNames) {
+            try {
+              const response = await fetch(`./recipes/${name}.agent`);
+              if (response.ok) {
+                const code = await response.text();
+                recipes.push({ name, code, size: code.length });
+              }
+            } catch (e) {
+              console.warn(`Failed to load ${name}:`, e);
+            }
+          }
+
+          if (recipes.length === 0) {
+            content.innerHTML = '<div class="bench-progress" style="color:#f48771">No recipes could be loaded.</div>';
+            return;
+          }
+
+          content.innerHTML = '<div class="bench-progress">Running benchmarks...</div>';
+          await new Promise(r => setTimeout(r, 50)); // Let UI update
+
+          const results = [];
+          const iterations = 100;
+
+          for (const recipe of recipes) {
+            // Warm up
+            for (let i = 0; i < 5; i++) {
+              parseAgentToJson(recipe.code);
+            }
+
+            // Benchmark parse only
+            let parseStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+              parseAgentToJson(recipe.code);
+            }
+            const parseTime = (performance.now() - parseStart) / iterations;
+
+            // Benchmark parse + JSON.parse (full round trip)
+            let fullStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+              const json = parseAgentToJson(recipe.code);
+              JSON.parse(json);
+            }
+            const fullTime = (performance.now() - fullStart) / iterations;
+
+            results.push({
+              name: recipe.name,
+              size: recipe.size,
+              parseTime,
+              fullTime
+            });
+          }
+
+          // Sort by parse time
+          results.sort((a, b) => a.parseTime - b.parseTime);
+
+          // Calculate totals
+          const totalSize = results.reduce((sum, r) => sum + r.size, 0);
+          const totalParseTime = results.reduce((sum, r) => sum + r.parseTime, 0);
+          const totalFullTime = results.reduce((sum, r) => sum + r.fullTime, 0);
+
+          // Render results
+          let html = `
+            <div class="bench-results">
+              <div class="bench-row header">
+                <span>Recipe</span>
+                <span class="size">Size</span>
+                <span class="time">Parse</span>
+                <span class="time">+JSON</span>
+              </div>
+          `;
+
+          for (const r of results) {
+            html += `
+              <div class="bench-row">
+                <span class="name">${r.name}</span>
+                <span class="size">${(r.size / 1024).toFixed(1)}KB</span>
+                <span class="time">${r.parseTime.toFixed(2)}ms</span>
+                <span class="time">${r.fullTime.toFixed(2)}ms</span>
+              </div>
+            `;
+          }
+
+          html += `
+              <div class="bench-summary">
+                <div class="bench-row">
+                  <span><strong>Total (${results.length} files)</strong></span>
+                  <span class="size">${(totalSize / 1024).toFixed(1)}KB</span>
+                  <span class="time">${totalParseTime.toFixed(2)}ms</span>
+                  <span class="time">${totalFullTime.toFixed(2)}ms</span>
+                </div>
+                <div style="margin-top:0.5rem;font-size:0.7rem;color:#888">
+                  Throughput: ${(totalSize / totalParseTime / 1024).toFixed(1)} MB/s (parse) |
+                  ${(totalSize / totalFullTime / 1024).toFixed(1)} MB/s (parse+JSON)
+                  <br>Average per iteration: ${iterations} iterations
+                </div>
+              </div>
+            </div>
+          `;
+
+          content.innerHTML = html;
+        });
+
+        const statusEl = document.getElementById('status');
+        const statsEl = document.getElementById('stats');
+        const astTree = document.getElementById('ast-tree');
+
+        // Debounce helper
+        let parseTimeout = null;
+        function debounce(fn, delay) {
+          return (...args) => {
+            clearTimeout(parseTimeout);
+            parseTimeout = setTimeout(() => fn(...args), delay);
+          };
+        }
+
+        // Parse and display AST
+        function parseAndDisplay(code) {
+          currentSource = code;
+          const startTime = performance.now();
+          const filter = document.getElementById('ast-filter').value;
+
+          if (parseAgentToJson) {
+            try {
+              const json = parseAgentToJson(code);
+              const parseTime = (performance.now() - startTime).toFixed(2);
+              currentAst = JSON.parse(json);
+
+              statusEl.textContent = 'Valid AgentScript';
+              statusEl.className = 'status success';
+
+              const topicCount = currentAst.topics?.length || 0;
+              const varCount = currentAst.variables?.variables?.length || 0;
+              const hasStartAgent = currentAst.start_agent ? 1 : 0;
+
+              statsEl.innerHTML = `
+                <span>${parseTime}ms</span>
+                <span>${topicCount} topics</span>
+                <span>${varCount} vars</span>
+                <span>${hasStartAgent ? 'start_agent' : ''}</span>
+              `;
+
+              astTree.innerHTML = renderAstTree(currentAst, filter);
+            } catch (e) {
+              const parseTime = (performance.now() - startTime).toFixed(2);
+              currentAst = null;
+              statusEl.textContent = 'Parse Error';
+              statusEl.className = 'status error';
+              statsEl.innerHTML = `<span>${parseTime}ms</span>`;
+              astTree.innerHTML = `<span style="color:#f48771">${escapeHtml(e.toString())}</span>`;
+            }
+          } else {
+            statusEl.textContent = 'Syntax highlighting only (WASM not loaded)';
+            statusEl.className = 'status info';
+            statsEl.innerHTML = `<span>${code.split('\n').length} lines</span>`;
+            astTree.innerHTML = '<span style="color:#888">Load from GitHub Pages to enable WASM parsing.</span>';
+          }
+        }
+
+        // Cursor position tracking
+        editor.onDidChangeCursorPosition(debounce((e) => {
+          if (!currentAst || !document.getElementById('follow-cursor').checked) return;
+
+          const offset = editor.getModel().getOffsetAt(e.position);
+          const match = findNodeAtPosition(currentAst, offset, currentSource);
+
+          if (match && match.node.span) {
+            highlightAstNode(match.node.span.start, match.node.span.end);
+          }
+        }, 100));
+
+        // Initial parse
+        parseAndDisplay(editor.getValue());
+
+        // Parse on change (debounced)
+        editor.onDidChangeModelContent(debounce(() => {
+          parseAndDisplay(editor.getValue());
+        }, 300));
+      });
+    });
+  </script>
+</body>
+</html>

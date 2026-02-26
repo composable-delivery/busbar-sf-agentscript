@@ -1,0 +1,171 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "AgentScript",
+  "scopeName": "source.agentscript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#blocks" },
+    { "include": "#references" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#booleans" },
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.agentscript",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "blocks": {
+      "patterns": [
+        {
+          "name": "keyword.control.block.agentscript",
+          "match": "^(config|variables|system|connections|knowledge|language)\\s*:"
+        },
+        {
+          "match": "^(start_agent|topic|connection)\\s+(\\w+)\\s*:",
+          "captures": {
+            "1": { "name": "keyword.control.block.agentscript" },
+            "2": { "name": "entity.name.class.agentscript" }
+          }
+        },
+        {
+          "name": "keyword.control.block.nested.agentscript",
+          "match": "^\\s*(reasoning|actions|inputs|outputs|messages|instructions|before_reasoning|after_reasoning)\\s*:"
+        }
+      ]
+    },
+    "references": {
+      "patterns": [
+        {
+          "match": "@(variables|actions|topic|outputs|context)\\.(\\w+)",
+          "captures": {
+            "1": { "name": "support.type.namespace.agentscript" },
+            "2": { "name": "variable.other.reference.agentscript" }
+          }
+        },
+        {
+          "match": "@utils\\.(transition|escalate|setVariables)",
+          "captures": {
+            "1": { "name": "support.function.builtin.agentscript" }
+          }
+        },
+        {
+          "name": "support.type.namespace.agentscript",
+          "match": "@(variables|actions|topic|outputs|context|utils)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.agentscript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.agentscript",
+              "match": "\\\\."
+            },
+            {
+              "match": "\\{!([^}]+)\\}",
+              "captures": {
+                "0": { "name": "meta.embedded.expression.agentscript" },
+                "1": { "name": "variable.other.interpolation.agentscript" }
+              }
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.agentscript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.agentscript",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.agentscript",
+          "match": "\\b\\d+(\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.agentscript",
+          "match": "\\b(True|False|None)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.flow.agentscript",
+          "match": "\\b(if|else|transition|to)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.agentscript",
+          "match": "\\b(and|or|not|is)\\b"
+        },
+        {
+          "name": "keyword.other.modifier.agentscript",
+          "match": "\\b(mutable|linked)\\b"
+        },
+        {
+          "name": "keyword.other.clause.agentscript",
+          "match": "\\b(with|set|run|available|when)\\b"
+        },
+        {
+          "name": "storage.type.property.agentscript",
+          "match": "\\b(agent_name|agent_label|agent_type|default_agent_user|description|label|source|target|locale|welcome|error|is_required|is_displayable|is_used_by_planner|filter_from_agent|complex_data_type_name|require_user_confirmation|include_in_progress_indicator|progress_indicator_message)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.agentscript",
+          "match": "(==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.agentscript",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.agentscript",
+          "match": "[+\\-]"
+        },
+        {
+          "name": "punctuation.separator.agentscript",
+          "match": "[,:]"
+        },
+        {
+          "name": "punctuation.definition.instruction.agentscript",
+          "match": "\\||->"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.agentscript",
+          "match": "\\b(string|number|boolean|object|integer|long|date|datetime|time|timestamp|currency|id|list)\\b"
+        }
+      ]
+    }
+  }
+}

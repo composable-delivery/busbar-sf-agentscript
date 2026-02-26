@@ -1,0 +1,41 @@
+# Rust build artifacts
+target/
+debug/
+**/*.rs.bk
+*.pdb
+
+# WASM package output
+pkg/
+**/dist/
+
+# Node / tree-sitter
+node_modules/
+build/
+*.wasm
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.iml
+
+# Env / secrets
+.env
+.env.local
+
+# Test output
+*.profraw
+*.profdata
+lcov.info
+coverage/
+playwright-report/
+test-results/
+
+# Benchmarks
+criterion/
+**/mutants.out*/
+
+# Cargo lock for libraries
+# Cargo.lock
