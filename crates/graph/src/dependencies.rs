@@ -9,9 +9,9 @@
 //!
 //! This enables offline analysis of agent dependencies without round-tripping to the org.
 
-use serde::{Deserialize, Serialize};
 use busbar_sf_agentscript_parser::ast::{ActionDef, ConnectionBlock, KnowledgeBlock};
 use busbar_sf_agentscript_parser::AgentFile;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Type of Salesforce org dependency.

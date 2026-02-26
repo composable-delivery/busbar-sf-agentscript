@@ -3,18 +3,18 @@ use tower_lsp::lsp_types::*;
 
 // Token types: indices into this array are used by the LSP protocol
 const TOKEN_TYPES: &[SemanticTokenType] = &[
-    SemanticTokenType::NAMESPACE,  // 0: @variables, @actions, @topic, @utils, @outputs, @context
-    SemanticTokenType::TYPE,       // 1: string, boolean, date, number, etc.
-    SemanticTokenType::CLASS,      // 2: topic names
-    SemanticTokenType::FUNCTION,   // 3: action names
-    SemanticTokenType::VARIABLE,   // 4: variable names
-    SemanticTokenType::PARAMETER,  // 5: action parameters
-    SemanticTokenType::PROPERTY,   // 6: properties (description, target, etc.)
-    SemanticTokenType::KEYWORD,    // 7: config, variables, topic, start_agent, etc.
-    SemanticTokenType::STRING,     // 8: string values
-    SemanticTokenType::COMMENT,    // 9: comments
-    SemanticTokenType::NUMBER,     // 10: numeric literals
-    SemanticTokenType::OPERATOR,   // 11: operators
+    SemanticTokenType::NAMESPACE, // 0: @variables, @actions, @topic, @utils, @outputs, @context
+    SemanticTokenType::TYPE,      // 1: string, boolean, date, number, etc.
+    SemanticTokenType::CLASS,     // 2: topic names
+    SemanticTokenType::FUNCTION,  // 3: action names
+    SemanticTokenType::VARIABLE,  // 4: variable names
+    SemanticTokenType::PARAMETER, // 5: action parameters
+    SemanticTokenType::PROPERTY,  // 6: properties (description, target, etc.)
+    SemanticTokenType::KEYWORD,   // 7: config, variables, topic, start_agent, etc.
+    SemanticTokenType::STRING,    // 8: string values
+    SemanticTokenType::COMMENT,   // 9: comments
+    SemanticTokenType::NUMBER,    // 10: numeric literals
+    SemanticTokenType::OPERATOR,  // 11: operators
 ];
 
 const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
@@ -32,10 +32,7 @@ lazy_static::lazy_static! {
 }
 
 /// Compute delta-encoded semantic tokens for the document.
-pub fn compute_semantic_tokens(
-    source: &str,
-    ast: Option<&AgentFile>,
-) -> Vec<SemanticToken> {
+pub fn compute_semantic_tokens(source: &str, ast: Option<&AgentFile>) -> Vec<SemanticToken> {
     let mut raw_tokens: Vec<RawToken> = Vec::new();
 
     // 1. Comments (scan source directly)
@@ -287,13 +284,7 @@ fn emit_reference_tokens(source: &str, tokens: &mut Vec<RawToken>) {
                                 "context" => 6,   // property
                                 _ => 6,
                             };
-                            push_span_token(
-                                source,
-                                tokens,
-                                &(member_start..i),
-                                member_type,
-                                0,
-                            );
+                            push_span_token(source, tokens, &(member_start..i), member_type, 0);
                         }
                     }
                     continue;

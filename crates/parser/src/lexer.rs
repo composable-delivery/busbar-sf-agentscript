@@ -594,7 +594,8 @@ pub fn add_indentation_tokens<'src>(
                     // Emit DEDENT for each level we pop
                     while indent_stack.len() > 1 && *indent_stack.last().unwrap() > new_indent {
                         indent_stack.pop();
-                        result.push((Token::Dedent, Span::new((), next_span.start..next_span.start)));
+                        result
+                            .push((Token::Dedent, Span::new((), next_span.start..next_span.start)));
                     }
                     // Note: In strict Python, if new_indent doesn't match any stack level,
                     // it's an IndentationError. We're lenient here and just dedent to nearest.

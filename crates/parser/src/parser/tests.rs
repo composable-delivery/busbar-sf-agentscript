@@ -1,28 +1,20 @@
-use crate::ast::AgentFile;
-use crate::lexer;
-
-// Re-export the span type
-pub use super::primitives::Span;
-
-// Re-export primitives needed by agent_file_parser
-use super::primitives::{skip_toplevel_noise, ParserInput};
-
-use chumsky::prelude::*;
-
-use super::config::config_block;
-use super::language::language_block;
-use super::system::system_block;
-use super::topics::{start_agent_block, topic_block};
-use super::variables::variables_block;
-
 // ============================================================================
 // Tests
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
+    use super::config::config_block;
     use super::expressions::{expr, reference};
+    use super::language::language_block;
+    use super::primitives::{self, skip_toplevel_noise, ParserInput, Span};
+    use super::system::system_block;
+    use super::topics::{start_agent_block, topic_block};
+    use super::variables::variables_block;
     use super::*;
+    use crate::ast::AgentFile;
+    use crate::lexer;
+    use chumsky::prelude::*;
 
     #[test]
     fn test_parse_minimal_config() {

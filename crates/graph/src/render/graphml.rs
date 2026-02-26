@@ -3,9 +3,18 @@
 //! GraphML is an XML-based format for graph exchange that is widely supported
 //! by graph visualization tools like yEd, Gephi, Cytoscape, etc.
 
-use std::fmt::Write;
-use petgraph::visit::EdgeRef;
 use crate::{RefGraph, RefNode};
+use petgraph::visit::EdgeRef;
+use std::fmt::Write;
+
+type NodeAttrs<'a> = (
+    &'static str,
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<bool>,
+    (usize, usize),
+);
 
 /// Render a RefGraph as GraphML XML.
 ///
@@ -21,25 +30,56 @@ pub fn render_graphml(graph: &RefGraph) -> String {
     writeln!(output, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
     writeln!(output, r#"<graphml xmlns="http://graphml.graphdrawing.org/xmlns""#).unwrap();
     writeln!(output, r#"         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance""#).unwrap();
-    writeln!(output, r#"         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns"#).unwrap();
-    writeln!(output, r#"         http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">"#).unwrap();
+    writeln!(output, r#"         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns"#)
+        .unwrap();
+    writeln!(output, r#"         http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">"#)
+        .unwrap();
 
     // Define node attributes
-    writeln!(output, r#"  <key id="node_type" for="node" attr.name="node_type" attr.type="string"/>"#).unwrap();
-    writeln!(output, r#"  <key id="name" for="node" attr.name="name" attr.type="string"/>"#).unwrap();
-    writeln!(output, r#"  <key id="topic" for="node" attr.name="topic" attr.type="string"/>"#).unwrap();
-    writeln!(output, r#"  <key id="target" for="node" attr.name="target" attr.type="string"/>"#).unwrap();
-    writeln!(output, r#"  <key id="mutable" for="node" attr.name="mutable" attr.type="boolean"/>"#).unwrap();
-    writeln!(output, r#"  <key id="span_start" for="node" attr.name="span_start" attr.type="int"/>"#).unwrap();
-    writeln!(output, r#"  <key id="span_end" for="node" attr.name="span_end" attr.type="int"/>"#).unwrap();
-    writeln!(output, r#"  <key id="label" for="node" attr.name="label" attr.type="string"/>"#).unwrap();
+    writeln!(
+        output,
+        r#"  <key id="node_type" for="node" attr.name="node_type" attr.type="string"/>"#
+    )
+    .unwrap();
+    writeln!(output, r#"  <key id="name" for="node" attr.name="name" attr.type="string"/>"#)
+        .unwrap();
+    writeln!(output, r#"  <key id="topic" for="node" attr.name="topic" attr.type="string"/>"#)
+        .unwrap();
+    writeln!(
+        output,
+        r#"  <key id="target" for="node" attr.name="target" attr.type="string"/>"#
+    )
+    .unwrap();
+    writeln!(
+        output,
+        r#"  <key id="mutable" for="node" attr.name="mutable" attr.type="boolean"/>"#
+    )
+    .unwrap();
+    writeln!(
+        output,
+        r#"  <key id="span_start" for="node" attr.name="span_start" attr.type="int"/>"#
+    )
+    .unwrap();
+    writeln!(
+        output,
+        r#"  <key id="span_end" for="node" attr.name="span_end" attr.type="int"/>"#
+    )
+    .unwrap();
+    writeln!(output, r#"  <key id="label" for="node" attr.name="label" attr.type="string"/>"#)
+        .unwrap();
 
     // Define edge attributes
-    writeln!(output, r#"  <key id="edge_type" for="edge" attr.name="edge_type" attr.type="string"/>"#).unwrap();
+    writeln!(
+        output,
+        r#"  <key id="edge_type" for="edge" attr.name="edge_type" attr.type="string"/>"#
+    )
+    .unwrap();
 
     // yEd-specific: node graphics (optional, for better visualization)
-    writeln!(output, r#"  <key id="nodegraphics" for="node" yfiles.type="nodegraphics"/>"#).unwrap();
-    writeln!(output, r#"  <key id="edgegraphics" for="edge" yfiles.type="edgegraphics"/>"#).unwrap();
+    writeln!(output, r#"  <key id="nodegraphics" for="node" yfiles.type="nodegraphics"/>"#)
+        .unwrap();
+    writeln!(output, r#"  <key id="edgegraphics" for="edge" yfiles.type="edgegraphics"/>"#)
+        .unwrap();
 
     // Start graph
     writeln!(output, r#"  <graph id="G" edgedefault="directed">"#).unwrap();
@@ -77,17 +117,19 @@ pub fn render_graphml(graph: &RefGraph) -> String {
     }
 
     // Output edges
-    let mut edge_id = 0;
-    for edge in inner.edge_references() {
+    for (edge_id, edge) in inner.edge_references().enumerate() {
         let source = edge.source().index();
         let target = edge.target().index();
         let edge_type = edge.weight().label();
 
-        writeln!(output, r#"    <edge id="e{}" source="n{}" target="n{}">"#, edge_id, source, target).unwrap();
+        writeln!(
+            output,
+            r#"    <edge id="e{}" source="n{}" target="n{}">"#,
+            edge_id, source, target
+        )
+        .unwrap();
         writeln!(output, r#"      <data key="edge_type">{}</data>"#, edge_type).unwrap();
         writeln!(output, r#"    </edge>"#).unwrap();
-
-        edge_id += 1;
     }
 
     // Close graph and graphml
@@ -98,23 +140,31 @@ pub fn render_graphml(graph: &RefGraph) -> String {
 }
 
 /// Extract node attributes for GraphML output.
-fn extract_node_attrs(node: &RefNode) -> (&'static str, Option<&str>, Option<&str>, Option<&str>, Option<bool>, (usize, usize)) {
+fn extract_node_attrs(node: &RefNode) -> NodeAttrs<'_> {
     match node {
-        RefNode::StartAgent { span } => {
-            ("start_agent", None, None, None, None, *span)
-        }
-        RefNode::Topic { name, span } => {
-            ("topic", Some(name.as_str()), None, None, None, *span)
-        }
+        RefNode::StartAgent { span } => ("start_agent", None, None, None, None, *span),
+        RefNode::Topic { name, span } => ("topic", Some(name.as_str()), None, None, None, *span),
         RefNode::ActionDef { name, topic, span } => {
             ("action_def", Some(name.as_str()), Some(topic.as_str()), None, None, *span)
         }
-        RefNode::ReasoningAction { name, topic, target, span } => {
-            ("reasoning_action", Some(name.as_str()), Some(topic.as_str()), target.as_deref(), None, *span)
-        }
-        RefNode::Variable { name, mutable, span } => {
-            ("variable", Some(name.as_str()), None, None, Some(*mutable), *span)
-        }
+        RefNode::ReasoningAction {
+            name,
+            topic,
+            target,
+            span,
+        } => (
+            "reasoning_action",
+            Some(name.as_str()),
+            Some(topic.as_str()),
+            target.as_deref(),
+            None,
+            *span,
+        ),
+        RefNode::Variable {
+            name,
+            mutable,
+            span,
+        } => ("variable", Some(name.as_str()), None, None, Some(*mutable), *span),
         RefNode::Connection { name, span } => {
             ("connection", Some(name.as_str()), None, None, None, *span)
         }

@@ -316,25 +316,23 @@ pub(crate) fn reasoning_block<'tokens, 'src: 'tokens>() -> impl Parser<
                     .then_ignore(newline())
                     .then_ignore(skip_block_noise())
                     .then(
-                        just(Token::Dedent)
-                            .rewind()
-                            .to(None)
-                            .or(
-                                indent()
-                                    .ignore_then(
-                                        reasoning_action()
-                                            .separated_by(skip_block_noise())
-                                            .allow_trailing()
-                                            .collect::<Vec<_>>(),
-                                    )
-                                    .then_ignore(skip_block_noise())
-                                    .then_ignore(dedent())
-                                    .map(Some)
+                        just(Token::Dedent).rewind().to(None).or(indent()
+                            .ignore_then(
+                                reasoning_action()
+                                    .separated_by(skip_block_noise())
+                                    .allow_trailing()
+                                    .collect::<Vec<_>>(),
                             )
+                            .then_ignore(skip_block_noise())
+                            .then_ignore(dedent())
+                            .map(Some)),
                     )
                     .validate(|(actions_span, entries), _, emitter| {
                         if entries.is_none() {
-                            emitter.emit(Rich::custom(actions_span, "reasoning actions block cannot be empty"));
+                            emitter.emit(Rich::custom(
+                                actions_span,
+                                "reasoning actions block cannot be empty",
+                            ));
                         }
                         entries.unwrap_or_default()
                     })

@@ -6,8 +6,8 @@
 //! - `export` - Serialization types
 //! - Core crate - Graph building, validation, queries
 
+use crate::{export, render, RefGraph};
 use wasm_bindgen::prelude::*;
-use crate::{RefGraph, render, export};
 
 /// Initialize panic hook for better error messages in the browser console.
 #[wasm_bindgen(start)]
@@ -126,10 +126,14 @@ pub fn find_variable_usages(source: &str, var_name: &str) -> Result<String, JsVa
     let writers = graph.find_variable_writers(var_idx);
 
     let result = export::VariableUsagesRepr {
-        readers: readers.nodes.iter()
+        readers: readers
+            .nodes
+            .iter()
             .filter_map(|&idx| graph.get_node(idx).map(export::UsageInfoRepr::from_node))
             .collect(),
-        writers: writers.nodes.iter()
+        writers: writers
+            .nodes
+            .iter()
             .filter_map(|&idx| graph.get_node(idx).map(export::UsageInfoRepr::from_node))
             .collect(),
     };

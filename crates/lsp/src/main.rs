@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use busbar_sf_agentscript_graph::dependencies::{extract_dependencies, DependencyReport};
+use busbar_sf_agentscript_graph::{GraphRepr, RefGraphBuilder};
 use busbar_sf_agentscript_parser::ast::*;
 use busbar_sf_agentscript_parser::error::ParseErrorInfo;
-use busbar_sf_agentscript_graph::{RefGraphBuilder, GraphRepr};
-use busbar_sf_agentscript_graph::dependencies::{extract_dependencies, DependencyReport};
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -31,7 +31,9 @@ impl DocumentState {
         let (ast, parse_errors) =
             busbar_sf_agentscript_parser::parser::parse_with_structured_errors_all(&source);
 
-        let graph = ast.as_ref().and_then(|a| RefGraphBuilder::new().build(a).ok());
+        let graph = ast
+            .as_ref()
+            .and_then(|a| RefGraphBuilder::new().build(a).ok());
 
         Self {
             source,
@@ -88,8 +90,12 @@ impl Backend {
                     diagnostics.push(Diagnostic {
                         range: span_to_range(&doc.source, span.clone()),
                         severity: Some(match err.severity {
-                            busbar_sf_agentscript_parser::validation::Severity::Error => DiagnosticSeverity::ERROR,
-                            busbar_sf_agentscript_parser::validation::Severity::Warning => DiagnosticSeverity::WARNING,
+                            busbar_sf_agentscript_parser::validation::Severity::Error => {
+                                DiagnosticSeverity::ERROR
+                            }
+                            busbar_sf_agentscript_parser::validation::Severity::Warning => {
+                                DiagnosticSeverity::WARNING
+                            }
                         }),
                         source: Some("agentscript".to_string()),
                         message: err.message.clone(),
@@ -210,9 +216,11 @@ fn get_completions(doc: &DocumentState, position: Position) -> Vec<CompletionIte
                                                 "{:?} {:?}",
                                                 v.node.kind, v.node.ty.node
                                             )),
-                                            documentation: v.node.description.as_ref().map(|d| {
-                                                Documentation::String(d.node.clone())
-                                            }),
+                                            documentation: v
+                                                .node
+                                                .description
+                                                .as_ref()
+                                                .map(|d| Documentation::String(d.node.clone())),
                                             ..Default::default()
                                         });
                                     }
@@ -226,11 +234,7 @@ fn get_completions(doc: &DocumentState, position: Position) -> Vec<CompletionIte
                                     items.push(CompletionItem {
                                         label: name.clone(),
                                         kind: Some(CompletionItemKind::CLASS),
-                                        detail: t
-                                            .node
-                                            .description
-                                            .as_ref()
-                                            .map(|d| d.node.clone()),
+                                        detail: t.node.description.as_ref().map(|d| d.node.clone()),
                                         ..Default::default()
                                     });
                                 }
@@ -322,12 +326,15 @@ fn get_completions(doc: &DocumentState, position: Position) -> Vec<CompletionIte
     // Sub-block keywords inside topic/start_agent (indent == 3)
     if indent == 3 && line.trim().is_empty() {
         // Config properties
-        let in_config = before.rfind("config:").map(|i| {
-            !before[i..].contains("\ntopic ")
-                && !before[i..].contains("\nstart_agent ")
-                && !before[i..].contains("\nvariables:")
-                && !before[i..].contains("\nsystem:")
-        }).unwrap_or(false);
+        let in_config = before
+            .rfind("config:")
+            .map(|i| {
+                !before[i..].contains("\ntopic ")
+                    && !before[i..].contains("\nstart_agent ")
+                    && !before[i..].contains("\nvariables:")
+                    && !before[i..].contains("\nsystem:")
+            })
+            .unwrap_or(false);
         if in_config {
             let props: &[(&str, &str, &str)] = &[
                 ("agent_name:", "Required agent identifier", "agent_name: \"$1\""),
@@ -348,12 +355,15 @@ fn get_completions(doc: &DocumentState, position: Position) -> Vec<CompletionIte
         }
 
         // Variable keyword
-        let in_vars = before.rfind("variables:").map(|i| {
-            !before[i..].contains("\nconfig:")
-                && !before[i..].contains("\nsystem:")
-                && !before[i..].contains("\ntopic ")
-                && !before[i..].contains("\nstart_agent ")
-        }).unwrap_or(false);
+        let in_vars = before
+            .rfind("variables:")
+            .map(|i| {
+                !before[i..].contains("\nconfig:")
+                    && !before[i..].contains("\nsystem:")
+                    && !before[i..].contains("\ntopic ")
+                    && !before[i..].contains("\nstart_agent ")
+            })
+            .unwrap_or(false);
         if in_vars {
             items.push(CompletionItem {
                 label: "mutable".to_string(),
@@ -394,9 +404,18 @@ fn get_completions(doc: &DocumentState, position: Position) -> Vec<CompletionIte
     let trimmed = line.trim();
     if trimmed.ends_with("mutable ") || trimmed.ends_with("linked ") {
         let types = [
-            "string", "number", "boolean", "date", "object",
-            "timestamp", "currency", "id", "datetime", "time",
-            "integer", "long",
+            "string",
+            "number",
+            "boolean",
+            "date",
+            "object",
+            "timestamp",
+            "currency",
+            "id",
+            "datetime",
+            "time",
+            "integer",
+            "long",
         ];
         for ty in types {
             items.push(CompletionItem {
@@ -614,10 +633,7 @@ fn get_references(doc: &DocumentState, position: Position) -> Vec<Range> {
         let mut search_start = 0;
         while let Some(idx) = doc.source[search_start..].find(pattern.as_str()) {
             let abs_idx = search_start + idx;
-            ranges.push(span_to_range(
-                &doc.source,
-                abs_idx..abs_idx + pattern.len(),
-            ));
+            ranges.push(span_to_range(&doc.source, abs_idx..abs_idx + pattern.len()));
             search_start = abs_idx + pattern.len();
         }
     }
@@ -702,7 +718,11 @@ fn get_rename_edits(
         }
     }
 
-    if edits.is_empty() { None } else { Some(edits) }
+    if edits.is_empty() {
+        None
+    } else {
+        Some(edits)
+    }
 }
 
 // =============================================================================
@@ -841,7 +861,11 @@ fn get_document_symbols(doc: &DocumentState) -> Vec<DocumentSymbol> {
             deprecated: None,
             range: span_to_range(text, sa.span.clone()),
             selection_range: span_to_range(text, sa.node.name.span.clone()),
-            children: if sa_children.is_empty() { None } else { Some(sa_children) },
+            children: if sa_children.is_empty() {
+                None
+            } else {
+                Some(sa_children)
+            },
         });
     }
 
@@ -891,7 +915,11 @@ fn get_document_symbols(doc: &DocumentState) -> Vec<DocumentSymbol> {
             deprecated: None,
             range: span_to_range(text, topic.span.clone()),
             selection_range: span_to_range(text, topic.node.name.span.clone()),
-            children: if children.is_empty() { None } else { Some(children) },
+            children: if children.is_empty() {
+                None
+            } else {
+                Some(children)
+            },
         });
     }
 
@@ -911,7 +939,10 @@ fn format_document(doc: &DocumentState) -> Option<Vec<TextEdit>> {
     let end = offset_to_position(&doc.source, doc.source.len());
     Some(vec![TextEdit {
         range: Range {
-            start: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
             end,
         },
         new_text: formatted,
@@ -1117,13 +1148,13 @@ impl LanguageServer for Backend {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.write().await.remove(&params.text_document.uri);
+        self.documents
+            .write()
+            .await
+            .remove(&params.text_document.uri);
     }
 
-    async fn completion(
-        &self,
-        params: CompletionParams,
-    ) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let docs = self.documents.read().await;
         let Some(doc) = docs.get(&params.text_document_position.text_document.uri) else {
             return Ok(None);
@@ -1149,13 +1180,16 @@ impl LanguageServer for Backend {
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let docs = self.documents.read().await;
-        let uri = params.text_document_position_params.text_document.uri.clone();
+        let uri = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .clone();
         let Some(doc) = docs.get(&uri) else {
             return Ok(None);
         };
-        Ok(get_definition(doc, params.text_document_position_params.position).map(|range| {
-            GotoDefinitionResponse::Scalar(Location { uri, range })
-        }))
+        Ok(get_definition(doc, params.text_document_position_params.position)
+            .map(|range| GotoDefinitionResponse::Scalar(Location { uri, range })))
     }
 
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
@@ -1168,7 +1202,15 @@ impl LanguageServer for Backend {
         if ranges.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(ranges.into_iter().map(|range| Location { uri: uri.clone(), range }).collect()))
+            Ok(Some(
+                ranges
+                    .into_iter()
+                    .map(|range| Location {
+                        uri: uri.clone(),
+                        range,
+                    })
+                    .collect(),
+            ))
         }
     }
 
@@ -1206,10 +1248,7 @@ impl LanguageServer for Backend {
         }
     }
 
-    async fn formatting(
-        &self,
-        params: DocumentFormattingParams,
-    ) -> Result<Option<Vec<TextEdit>>> {
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
         let docs = self.documents.read().await;
         let Some(doc) = docs.get(&params.text_document.uri) else {
             return Ok(None);
@@ -1217,16 +1256,17 @@ impl LanguageServer for Backend {
         Ok(format_document(doc))
     }
 
-    async fn folding_range(
-        &self,
-        params: FoldingRangeParams,
-    ) -> Result<Option<Vec<FoldingRange>>> {
+    async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
         let docs = self.documents.read().await;
         let Some(doc) = docs.get(&params.text_document.uri) else {
             return Ok(None);
         };
         let ranges = get_folding_ranges(doc);
-        if ranges.is_empty() { Ok(None) } else { Ok(Some(ranges)) }
+        if ranges.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(ranges))
+        }
     }
 
     async fn semantic_tokens_full(
@@ -1245,16 +1285,17 @@ impl LanguageServer for Backend {
         })))
     }
 
-    async fn code_action(
-        &self,
-        params: CodeActionParams,
-    ) -> Result<Option<CodeActionResponse>> {
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         let docs = self.documents.read().await;
         let Some(doc) = docs.get(&params.text_document.uri) else {
             return Ok(None);
         };
         let actions = get_code_actions(doc, params.range);
-        if actions.is_empty() { Ok(None) } else { Ok(Some(actions)) }
+        if actions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(actions))
+        }
     }
 }
 
@@ -1372,80 +1413,98 @@ struct ActionInvoke {
 
 impl Backend {
     /// Handle agentscript/getGraph — returns the GraphRepr JSON for the given document.
-    async fn handle_get_graph(&self, params: serde_json::Value) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
+    async fn handle_get_graph(
+        &self,
+        params: serde_json::Value,
+    ) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
         let params: GetGraphParams = serde_json::from_value(params)
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(e.to_string()))?;
 
-        let uri: Url = params.uri.parse()
+        let uri: Url = params
+            .uri
+            .parse()
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(format!("{}", e)))?;
 
         let docs = self.documents.read().await;
-        let doc = docs.get(&uri)
+        let doc = docs
+            .get(&uri)
             .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("Document not found"))?;
 
-        let graph = doc.graph.as_ref()
-            .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("No graph available (parse errors?)"))?;
+        let graph = doc.graph.as_ref().ok_or_else(|| {
+            tower_lsp::jsonrpc::Error::invalid_params("No graph available (parse errors?)")
+        })?;
 
         let repr = GraphRepr::from(graph);
-        serde_json::to_value(&repr)
-            .map_err(|e| tower_lsp::jsonrpc::Error {
-                code: tower_lsp::jsonrpc::ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })
+        serde_json::to_value(&repr).map_err(|e| tower_lsp::jsonrpc::Error {
+            code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+            message: e.to_string().into(),
+            data: None,
+        })
     }
 
     /// Handle agentscript/getDependencies — returns external dependency analysis.
-    async fn handle_get_dependencies(&self, params: serde_json::Value) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
+    async fn handle_get_dependencies(
+        &self,
+        params: serde_json::Value,
+    ) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
         let params: GetDependenciesParams = serde_json::from_value(params)
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(e.to_string()))?;
 
-        let uri: Url = params.uri.parse()
+        let uri: Url = params
+            .uri
+            .parse()
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(format!("{}", e)))?;
 
         let docs = self.documents.read().await;
-        let doc = docs.get(&uri)
+        let doc = docs
+            .get(&uri)
             .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("Document not found"))?;
 
-        let ast = doc.ast.as_ref()
-            .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("No AST available (parse errors?)"))?;
+        let ast = doc.ast.as_ref().ok_or_else(|| {
+            tower_lsp::jsonrpc::Error::invalid_params("No AST available (parse errors?)")
+        })?;
 
         let report = extract_dependencies(ast);
         let repr = DependencyReportRepr::from(&report);
-        serde_json::to_value(&repr)
-            .map_err(|e| tower_lsp::jsonrpc::Error {
-                code: tower_lsp::jsonrpc::ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })
+        serde_json::to_value(&repr).map_err(|e| tower_lsp::jsonrpc::Error {
+            code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+            message: e.to_string().into(),
+            data: None,
+        })
     }
 
     /// Handle agentscript/simulate — runs a dry simulation of the agent.
     ///
     /// This performs a static analysis simulation (walk through start_agent and
     /// first topic's before_reasoning/after_reasoning without LLM calls).
-    async fn handle_simulate(&self, params: serde_json::Value) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
+    async fn handle_simulate(
+        &self,
+        params: serde_json::Value,
+    ) -> tower_lsp::jsonrpc::Result<serde_json::Value> {
         let params: SimulateParams = serde_json::from_value(params)
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(e.to_string()))?;
 
-        let uri: Url = params.uri.parse()
+        let uri: Url = params
+            .uri
+            .parse()
             .map_err(|e| tower_lsp::jsonrpc::Error::invalid_params(format!("{}", e)))?;
 
         let docs = self.documents.read().await;
-        let doc = docs.get(&uri)
+        let doc = docs
+            .get(&uri)
             .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("Document not found"))?;
 
-        let ast = doc.ast.as_ref()
-            .ok_or_else(|| tower_lsp::jsonrpc::Error::invalid_params("No AST available (parse errors?)"))?;
+        let ast = doc.ast.as_ref().ok_or_else(|| {
+            tower_lsp::jsonrpc::Error::invalid_params("No AST available (parse errors?)")
+        })?;
 
         // Build a static simulation trace by walking the AST
         let result = build_static_simulation(ast, &params.mock_data);
-        serde_json::to_value(&result)
-            .map_err(|e| tower_lsp::jsonrpc::Error {
-                code: tower_lsp::jsonrpc::ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })
+        serde_json::to_value(&result).map_err(|e| tower_lsp::jsonrpc::Error {
+            code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+            message: e.to_string().into(),
+            data: None,
+        })
     }
 }
 
@@ -1476,7 +1535,14 @@ fn build_static_simulation(ast: &AgentFile, _mock_data: &serde_json::Value) -> S
                     steps.push(SimulationStep {
                         phase: "reasoning".to_string(),
                         statement_type: "reasoning_action".to_string(),
-                        detail: format!("{}: {}", a.name.node, a.description.as_ref().map(|d| d.node.as_str()).unwrap_or("")),
+                        detail: format!(
+                            "{}: {}",
+                            a.name.node,
+                            a.description
+                                .as_ref()
+                                .map(|d| d.node.as_str())
+                                .unwrap_or("")
+                        ),
                         variable_changes: vec![],
                         action_invocations: vec![],
                     });
@@ -1512,7 +1578,14 @@ fn build_static_simulation(ast: &AgentFile, _mock_data: &serde_json::Value) -> S
                     steps.push(SimulationStep {
                         phase: format!("{}:reasoning", name),
                         statement_type: "reasoning_action".to_string(),
-                        detail: format!("{}: {}", a.name.node, a.description.as_ref().map(|d| d.node.as_str()).unwrap_or("")),
+                        detail: format!(
+                            "{}: {}",
+                            a.name.node,
+                            a.description
+                                .as_ref()
+                                .map(|d| d.node.as_str())
+                                .unwrap_or("")
+                        ),
                         variable_changes: vec![],
                         action_invocations: vec![],
                     });
@@ -1540,7 +1613,11 @@ fn statement_to_step(phase: &str, stmt: &Stmt) -> SimulationStep {
         Stmt::Set { target, value } => SimulationStep {
             phase: phase.to_string(),
             statement_type: "set".to_string(),
-            detail: format!("set {} = {}", reference_to_string(&target.node), expr_preview(&value.node)),
+            detail: format!(
+                "set {} = {}",
+                reference_to_string(&target.node),
+                expr_preview(&value.node)
+            ),
             variable_changes: vec![VarChange {
                 name: reference_to_string(&target.node),
                 old_value: serde_json::Value::Null,
@@ -1548,8 +1625,13 @@ fn statement_to_step(phase: &str, stmt: &Stmt) -> SimulationStep {
             }],
             action_invocations: vec![],
         },
-        Stmt::Run { action, with_clauses, .. } => {
-            let inputs: Vec<String> = with_clauses.iter()
+        Stmt::Run {
+            action,
+            with_clauses,
+            ..
+        } => {
+            let inputs: Vec<String> = with_clauses
+                .iter()
                 .map(|w| {
                     let val = match &w.node.value.node {
                         WithValue::Expr(e) => expr_preview(e),
@@ -1560,7 +1642,11 @@ fn statement_to_step(phase: &str, stmt: &Stmt) -> SimulationStep {
             SimulationStep {
                 phase: phase.to_string(),
                 statement_type: "run".to_string(),
-                detail: format!("run {} with [{}]", reference_to_string(&action.node), inputs.join(", ")),
+                detail: format!(
+                    "run {} with [{}]",
+                    reference_to_string(&action.node),
+                    inputs.join(", ")
+                ),
                 variable_changes: vec![],
                 action_invocations: vec![ActionInvoke {
                     action_name: reference_to_string(&action.node),
@@ -1568,11 +1654,19 @@ fn statement_to_step(phase: &str, stmt: &Stmt) -> SimulationStep {
                     outputs: serde_json::json!({}),
                 }],
             }
-        },
-        Stmt::If { condition, then_block, .. } => SimulationStep {
+        }
+        Stmt::If {
+            condition,
+            then_block,
+            ..
+        } => SimulationStep {
             phase: phase.to_string(),
             statement_type: "if".to_string(),
-            detail: format!("if {} → {} statements", expr_preview(&condition.node), then_block.len()),
+            detail: format!(
+                "if {} → {} statements",
+                expr_preview(&condition.node),
+                then_block.len()
+            ),
             variable_changes: vec![],
             action_invocations: vec![],
         },
@@ -1597,7 +1691,12 @@ fn expr_preview(expr: &Expr) -> String {
         Expr::Bool(b) => b.to_string(),
         Expr::None => "None".to_string(),
         Expr::Reference(r) => reference_to_string(r),
-        Expr::BinOp { op, left, right } => format!("{} {} {}", expr_preview(&left.node), format!("{:?}", op).to_lowercase(), expr_preview(&right.node)),
+        Expr::BinOp { op, left, right } => format!(
+            "{} {} {}",
+            expr_preview(&left.node),
+            format!("{:?}", op).to_lowercase(),
+            expr_preview(&right.node)
+        ),
         _ => "(expr)".to_string(),
     }
 }
@@ -1674,7 +1773,10 @@ enum RefContext<'a> {
     /// `@` or `@part` — suggest namespaces
     Namespace(&'a str),
     /// `@namespace.part` — suggest members
-    Member { namespace: &'a str, partial: &'a str },
+    Member {
+        namespace: &'a str,
+        partial: &'a str,
+    },
 }
 
 fn extract_reference_context(line: &str) -> Option<RefContext<'_>> {
@@ -1765,7 +1867,7 @@ fn find_symbol_name_at_offset(ast: &AgentFile, source: &str, offset: usize) -> O
 }
 
 /// Actions visible at a given offset (same topic/start_agent scope).
-fn find_actions_at_offset<'a>(ast: &'a AgentFile, offset: usize) -> Vec<&'a Spanned<ActionDef>> {
+fn find_actions_at_offset(ast: &AgentFile, offset: usize) -> Vec<&Spanned<ActionDef>> {
     if let Some(sa) = &ast.start_agent {
         if sa.span.contains(&offset) {
             if let Some(actions) = &sa.node.actions {
@@ -1880,11 +1982,7 @@ fn hover_reasoning_block(
     None
 }
 
-fn hover_reference_at_offset(
-    ast: &AgentFile,
-    source: &str,
-    offset: usize,
-) -> Option<Hover> {
+fn hover_reference_at_offset(ast: &AgentFile, source: &str, offset: usize) -> Option<Hover> {
     let reference = find_reference_at_offset(source, offset)?;
     let name = reference.path.first()?;
 

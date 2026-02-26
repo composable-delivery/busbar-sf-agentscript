@@ -66,7 +66,9 @@ pub(crate) fn param_def<'tokens, 'src: 'tokens>() -> impl Parser<
         just(Token::FilterFromAgent)
             .ignore_then(just(Token::Colon))
             .ignore_then(choice((just(Token::True).to(true), just(Token::False).to(false))))
-            .map_with(|v, e| ParamDefEntry::FilterFromAgent(Spanned::new(v, to_ast_span(e.span())))),
+            .map_with(|v, e| {
+                ParamDefEntry::FilterFromAgent(Spanned::new(v, to_ast_span(e.span())))
+            }),
     ));
 
     param_name
@@ -194,11 +196,21 @@ pub(crate) fn action_def<'tokens, 'src: 'tokens>() -> impl Parser<
                 just(Token::RequireUserConfirmation)
                     .ignore_then(just(Token::Colon))
                     .ignore_then(choice((just(Token::True).to(true), just(Token::False).to(false))))
-                    .map_with(|v, e| ActionDefEntry::RequireUserConfirmation(Spanned::new(v, to_ast_span(e.span())))),
+                    .map_with(|v, e| {
+                        ActionDefEntry::RequireUserConfirmation(Spanned::new(
+                            v,
+                            to_ast_span(e.span()),
+                        ))
+                    }),
                 just(Token::IncludeInProgressIndicator)
                     .ignore_then(just(Token::Colon))
                     .ignore_then(choice((just(Token::True).to(true), just(Token::False).to(false))))
-                    .map_with(|v, e| ActionDefEntry::IncludeInProgressIndicator(Spanned::new(v, to_ast_span(e.span())))),
+                    .map_with(|v, e| {
+                        ActionDefEntry::IncludeInProgressIndicator(Spanned::new(
+                            v,
+                            to_ast_span(e.span()),
+                        ))
+                    }),
                 just(Token::ProgressIndicatorMessage)
                     .ignore_then(just(Token::Colon))
                     .ignore_then(spanned_string())
@@ -217,18 +229,16 @@ pub(crate) fn action_def<'tokens, 'src: 'tokens>() -> impl Parser<
                         just(Token::Dedent)
                             .rewind()
                             .to(None) // Empty block detected
-                            .or(
-                                indent()
-                                    .ignore_then(
-                                        input_output_entry()
-                                            .separated_by(skip_block_noise())
-                                            .allow_trailing()
-                                            .collect::<Vec<_>>(),
-                                    )
-                                    .then_ignore(skip_block_noise())
-                                    .then_ignore(dedent())
-                                    .map(Some)
-                            )
+                            .or(indent()
+                                .ignore_then(
+                                    input_output_entry()
+                                        .separated_by(skip_block_noise())
+                                        .allow_trailing()
+                                        .collect::<Vec<_>>(),
+                                )
+                                .then_ignore(skip_block_noise())
+                                .then_ignore(dedent())
+                                .map(Some)),
                     )
                     .validate(|(inputs_span, entries), _, emitter| {
                         if entries.is_none() {
@@ -244,25 +254,21 @@ pub(crate) fn action_def<'tokens, 'src: 'tokens>() -> impl Parser<
                     .then_ignore(newline())
                     .then_ignore(skip_block_noise())
                     .then(
-                        just(Token::Dedent)
-                            .rewind()
-                            .to(None)
-                            .or(
-                                indent()
-                                    .ignore_then(
-                                        input_output_entry()
-                                            .separated_by(skip_block_noise())
-                                            .allow_trailing()
-                                            .collect::<Vec<_>>(),
-                                    )
-                                    .then_ignore(skip_block_noise())
-                                    .then_ignore(dedent())
-                                    .map(Some)
+                        just(Token::Dedent).rewind().to(None).or(indent()
+                            .ignore_then(
+                                input_output_entry()
+                                    .separated_by(skip_block_noise())
+                                    .allow_trailing()
+                                    .collect::<Vec<_>>(),
                             )
+                            .then_ignore(skip_block_noise())
+                            .then_ignore(dedent())
+                            .map(Some)),
                     )
                     .validate(|(outputs_span, entries), _, emitter| {
                         if entries.is_none() {
-                            emitter.emit(Rich::custom(outputs_span, "outputs block cannot be empty"));
+                            emitter
+                                .emit(Rich::custom(outputs_span, "outputs block cannot be empty"));
                         }
                         entries.unwrap_or_default()
                     })
@@ -292,9 +298,15 @@ pub(crate) fn action_def<'tokens, 'src: 'tokens>() -> impl Parser<
                 match entry {
                     ActionDefEntry::Description(d) => def.description = Some(d),
                     ActionDefEntry::Label(l) => def.label = Some(l),
-                    ActionDefEntry::RequireUserConfirmation(v) => def.require_user_confirmation = Some(v),
-                    ActionDefEntry::IncludeInProgressIndicator(v) => def.include_in_progress_indicator = Some(v),
-                    ActionDefEntry::ProgressIndicatorMessage(m) => def.progress_indicator_message = Some(m),
+                    ActionDefEntry::RequireUserConfirmation(v) => {
+                        def.require_user_confirmation = Some(v)
+                    }
+                    ActionDefEntry::IncludeInProgressIndicator(v) => {
+                        def.include_in_progress_indicator = Some(v)
+                    }
+                    ActionDefEntry::ProgressIndicatorMessage(m) => {
+                        def.progress_indicator_message = Some(m)
+                    }
                     ActionDefEntry::Target(t) => def.target = Some(t),
                     ActionDefEntry::Inputs(i) => {
                         def.inputs = Some(Spanned::new(i, to_ast_span(e.span())))

@@ -493,13 +493,23 @@ impl Writer {
 
         if let Some(confirm) = &action.require_user_confirmation {
             self.write_indent();
-            write!(self.output, "require_user_confirmation: {}", if confirm.node { "True" } else { "False" }).unwrap();
+            write!(
+                self.output,
+                "require_user_confirmation: {}",
+                if confirm.node { "True" } else { "False" }
+            )
+            .unwrap();
             self.newline();
         }
 
         if let Some(progress) = &action.include_in_progress_indicator {
             self.write_indent();
-            write!(self.output, "include_in_progress_indicator: {}", if progress.node { "True" } else { "False" }).unwrap();
+            write!(
+                self.output,
+                "include_in_progress_indicator: {}",
+                if progress.node { "True" } else { "False" }
+            )
+            .unwrap();
             self.newline();
         }
 
@@ -553,19 +563,30 @@ impl Writer {
 
         if let Some(required) = &param.is_required {
             self.write_indent();
-            write!(self.output, "is_required: {}", if required.node { "True" } else { "False" }).unwrap();
+            write!(self.output, "is_required: {}", if required.node { "True" } else { "False" })
+                .unwrap();
             self.newline();
         }
 
         if let Some(filter) = &param.filter_from_agent {
             self.write_indent();
-            write!(self.output, "filter_from_agent: {}", if filter.node { "True" } else { "False" }).unwrap();
+            write!(
+                self.output,
+                "filter_from_agent: {}",
+                if filter.node { "True" } else { "False" }
+            )
+            .unwrap();
             self.newline();
         }
 
         if let Some(displayable) = &param.is_displayable {
             self.write_indent();
-            write!(self.output, "is_displayable: {}", if displayable.node { "True" } else { "False" }).unwrap();
+            write!(
+                self.output,
+                "is_displayable: {}",
+                if displayable.node { "True" } else { "False" }
+            )
+            .unwrap();
             self.newline();
         }
 
@@ -700,8 +721,7 @@ impl Writer {
 
         if let Some(available) = &action.available_when {
             self.write_indent();
-            write!(self.output, "available when {}", self.expr_to_string(&available.node))
-                .unwrap();
+            write!(self.output, "available when {}", self.expr_to_string(&available.node)).unwrap();
             self.newline();
         }
 
@@ -872,6 +892,7 @@ impl Writer {
     // Helper Methods
     // ========================================================================
 
+    #[allow(clippy::only_used_in_recursion)]
     fn type_to_string(&self, ty: &Type) -> String {
         match ty {
             Type::String => "string".to_string(),

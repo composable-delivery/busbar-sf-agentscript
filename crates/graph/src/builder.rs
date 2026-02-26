@@ -4,12 +4,12 @@ use crate::edges::RefEdge;
 use crate::error::{GraphBuildError, ValidationError};
 use crate::nodes::RefNode;
 use crate::RefGraph;
-use petgraph::graph::{DiGraph, NodeIndex};
 use busbar_sf_agentscript_parser::ast::{
     Expr, InstructionPart, Instructions, ReasoningAction, ReasoningActionTarget, Reference,
     VariableKind,
 };
 use busbar_sf_agentscript_parser::AgentFile;
+use petgraph::graph::{DiGraph, NodeIndex};
 use std::collections::HashMap;
 
 /// Builder for constructing a reference graph from an AST.
@@ -453,7 +453,11 @@ impl RefGraphBuilder {
     }
 
     /// Add edges for variable reads within an expression.
-    fn add_expression_edges(&mut self, from_idx: NodeIndex, expr: &busbar_sf_agentscript_parser::Spanned<Expr>) {
+    fn add_expression_edges(
+        &mut self,
+        from_idx: NodeIndex,
+        expr: &busbar_sf_agentscript_parser::Spanned<Expr>,
+    ) {
         match &expr.node {
             Expr::Reference(reference) => {
                 if reference.namespace == "variables" {

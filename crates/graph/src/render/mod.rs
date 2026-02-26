@@ -7,5 +7,5 @@
 mod ascii;
 mod graphml;
 
-pub use ascii::{render_topic_flow, render_actions_view, render_full_view, render_ascii_tree};
+pub use ascii::{render_actions_view, render_ascii_tree, render_full_view, render_topic_flow};
 pub use graphml::render_graphml;

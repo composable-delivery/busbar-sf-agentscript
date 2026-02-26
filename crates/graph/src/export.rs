@@ -3,10 +3,10 @@
 //! This module contains all the data structures used to serialize RefGraph
 //! data for external consumption (JSON, WASM, etc.).
 
-use serde::{Deserialize, Serialize};
-use petgraph::visit::EdgeRef;
-use crate::{RefGraph, RefNode, ValidationResult};
 use crate::error::ValidationError;
+use crate::{RefGraph, RefNode, ValidationResult};
+use petgraph::visit::EdgeRef;
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Basic representations
@@ -93,7 +93,12 @@ impl From<&RefNode> for NodeRepr {
                 span_start: span.0,
                 span_end: span.1,
             },
-            RefNode::ReasoningAction { name, topic, target, span } => NodeRepr {
+            RefNode::ReasoningAction {
+                name,
+                topic,
+                target,
+                span,
+            } => NodeRepr {
                 node_type: "reasoning_action".to_string(),
                 name: Some(name.clone()),
                 topic: Some(topic.clone()),
@@ -102,7 +107,11 @@ impl From<&RefNode> for NodeRepr {
                 span_start: span.0,
                 span_end: span.1,
             },
-            RefNode::Variable { name, mutable, span } => NodeRepr {
+            RefNode::Variable {
+                name,
+                mutable,
+                span,
+            } => NodeRepr {
                 node_type: "variable".to_string(),
                 name: Some(name.clone()),
                 topic: None,
@@ -147,8 +156,16 @@ pub struct ValidationResultRepr {
 impl From<&ValidationResult> for ValidationResultRepr {
     fn from(result: &ValidationResult) -> Self {
         Self {
-            errors: result.errors.iter().map(ValidationErrorRepr::from).collect(),
-            warnings: result.warnings.iter().map(ValidationErrorRepr::from).collect(),
+            errors: result
+                .errors
+                .iter()
+                .map(ValidationErrorRepr::from)
+                .collect(),
+            warnings: result
+                .warnings
+                .iter()
+                .map(ValidationErrorRepr::from)
+                .collect(),
             is_valid: result.is_ok(),
         }
     }
@@ -212,7 +229,12 @@ impl UsageInfoRepr {
                 topic: Some(topic.clone()),
                 context: None,
             },
-            RefNode::ReasoningAction { name, topic, target, .. } => UsageInfoRepr {
+            RefNode::ReasoningAction {
+                name,
+                topic,
+                target,
+                ..
+            } => UsageInfoRepr {
                 location: name.clone(),
                 node_type: "reasoning_action".to_string(),
                 topic: Some(topic.clone()),
@@ -389,14 +411,20 @@ impl GraphExport {
             // Find topic's actions and transitions from edges
             for edge in inner.edge_references() {
                 let edge_type = edge.weight().label();
-                if let (Some(src), Some(tgt)) = (graph.get_node(edge.source()), graph.get_node(edge.target())) {
+                if let (Some(src), Some(tgt)) =
+                    (graph.get_node(edge.source()), graph.get_node(edge.target()))
+                {
                     match (src, edge_type) {
-                        (RefNode::Topic { name: src_name, .. }, "transitions_to") if src_name == topic_name => {
+                        (RefNode::Topic { name: src_name, .. }, "transitions_to")
+                            if src_name == topic_name =>
+                        {
                             if let RefNode::Topic { name: tgt_name, .. } = tgt {
                                 transitions.push(tgt_name.clone());
                             }
                         }
-                        (RefNode::Topic { name: src_name, .. }, "delegates") if src_name == topic_name => {
+                        (RefNode::Topic { name: src_name, .. }, "delegates")
+                            if src_name == topic_name =>
+                        {
                             if let RefNode::Topic { name: tgt_name, .. } = tgt {
                                 delegates.push(tgt_name.clone());
                             }
@@ -408,7 +436,13 @@ impl GraphExport {
 
             // Find actions defined in this topic
             for idx in inner.node_indices() {
-                if let Some(RefNode::ReasoningAction { name, topic, target, .. }) = graph.get_node(idx) {
+                if let Some(RefNode::ReasoningAction {
+                    name,
+                    topic,
+                    target,
+                    ..
+                }) = graph.get_node(idx)
+                {
                     if topic == topic_name {
                         actions.push(ActionExportInfo {
                             name: name.clone(),
@@ -461,8 +495,16 @@ impl GraphExport {
             },
             validation: ValidationExport {
                 is_valid: validation.is_ok(),
-                errors: validation.errors.iter().map(ValidationErrorRepr::from).collect(),
-                warnings: validation.warnings.iter().map(ValidationErrorRepr::from).collect(),
+                errors: validation
+                    .errors
+                    .iter()
+                    .map(ValidationErrorRepr::from)
+                    .collect(),
+                warnings: validation
+                    .warnings
+                    .iter()
+                    .map(ValidationErrorRepr::from)
+                    .collect(),
             },
         }
     }

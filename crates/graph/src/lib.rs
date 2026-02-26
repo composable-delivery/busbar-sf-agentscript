@@ -98,7 +98,9 @@ impl RefGraph {
     ///
     /// This traverses the AST and builds nodes for all definitions,
     /// then creates edges for all references between them.
-    pub fn from_ast(ast: &busbar_sf_agentscript_parser::AgentFile) -> Result<Self, GraphBuildError> {
+    pub fn from_ast(
+        ast: &busbar_sf_agentscript_parser::AgentFile,
+    ) -> Result<Self, GraphBuildError> {
         RefGraphBuilder::new().build(ast)
     }
 

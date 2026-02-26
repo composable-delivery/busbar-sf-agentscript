@@ -205,8 +205,8 @@ recipe_test!(
 
 #[cfg(test)]
 mod parser_unit_tests {
-    use chumsky::prelude::*;
     use busbar_sf_agentscript_parser::{lexer, parse_source};
+    use chumsky::prelude::*;
 
     #[test]
     fn test_parse_config_only() {

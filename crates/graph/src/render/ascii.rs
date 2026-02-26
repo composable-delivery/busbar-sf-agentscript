@@ -2,9 +2,9 @@
 //!
 //! Provides terminal-friendly tree and diagram output for RefGraph structures.
 
-use std::collections::{HashMap, HashSet};
-use petgraph::visit::EdgeRef;
 use crate::{RefGraph, RefNode};
+use petgraph::visit::EdgeRef;
+use std::collections::{HashMap, HashSet};
 
 /// Render the topic flow graph as ASCII art.
 ///
@@ -38,7 +38,10 @@ pub fn render_topic_flow(graph: &RefGraph) -> String {
                 if let (Some(&src_id), Some(&tgt_id)) =
                     (topic_idx.get(&src_name), topic_idx.get(&tgt_name))
                 {
-                    edges.entry(src_id).or_default().push((tgt_id, edge_type.to_string()));
+                    edges
+                        .entry(src_id)
+                        .or_default()
+                        .push((tgt_id, edge_type.to_string()));
                 }
             }
         }
@@ -84,11 +87,13 @@ pub fn render_actions_view(graph: &RefGraph) -> String {
     for edge in inner.edge_references() {
         let edge_type = edge.weight().label();
         if edge_type == "invokes" || edge_type == "transitions_to" || edge_type == "delegates" {
-            if let (Some(&src_id), Some(&tgt_id)) = (
-                node_map.get(&edge.source().index()),
-                node_map.get(&edge.target().index()),
-            ) {
-                edges.entry(src_id).or_default().push((tgt_id, edge_type.to_string()));
+            if let (Some(&src_id), Some(&tgt_id)) =
+                (node_map.get(&edge.source().index()), node_map.get(&edge.target().index()))
+            {
+                edges
+                    .entry(src_id)
+                    .or_default()
+                    .push((tgt_id, edge_type.to_string()));
             }
         }
     }
@@ -134,7 +139,12 @@ pub fn render_full_view(graph: &RefGraph) -> String {
                         t.actions.push(name.clone());
                     }
                 }
-                RefNode::ReasoningAction { name, topic, target, .. } => {
+                RefNode::ReasoningAction {
+                    name,
+                    topic,
+                    target,
+                    ..
+                } => {
                     if let Some(t) = topics.get_mut(topic) {
                         let desc = if let Some(tgt) = target {
                             format!("{} → {}", name, tgt.split("://").last().unwrap_or(tgt))
@@ -160,14 +170,22 @@ pub fn render_full_view(graph: &RefGraph) -> String {
                 (RefNode::StartAgent { .. }, RefNode::Topic { name, .. }, "routes") => {
                     start_routes.push(name.clone());
                 }
-                (RefNode::Topic { name: src_name, .. }, RefNode::Topic { name: tgt_name, .. }, "transitions_to") => {
+                (
+                    RefNode::Topic { name: src_name, .. },
+                    RefNode::Topic { name: tgt_name, .. },
+                    "transitions_to",
+                ) => {
                     if let Some(t) = topics.get_mut(src_name) {
                         if !t.transitions.contains(tgt_name) {
                             t.transitions.push(tgt_name.clone());
                         }
                     }
                 }
-                (RefNode::Topic { name: src_name, .. }, RefNode::Topic { name: tgt_name, .. }, "delegates") => {
+                (
+                    RefNode::Topic { name: src_name, .. },
+                    RefNode::Topic { name: tgt_name, .. },
+                    "delegates",
+                ) => {
                     if let Some(t) = topics.get_mut(src_name) {
                         if !t.delegates.contains(tgt_name) {
                             t.delegates.push(tgt_name.clone());
@@ -187,8 +205,16 @@ pub fn render_full_view(graph: &RefGraph) -> String {
     // Variables summary
     if !variables.is_empty() {
         output.push_str("VARIABLES:\n");
-        let mutable: Vec<_> = variables.iter().filter(|(_, m)| *m).map(|(n, _)| n.as_str()).collect();
-        let linked: Vec<_> = variables.iter().filter(|(_, m)| !*m).map(|(n, _)| n.as_str()).collect();
+        let mutable: Vec<_> = variables
+            .iter()
+            .filter(|(_, m)| *m)
+            .map(|(n, _)| n.as_str())
+            .collect();
+        let linked: Vec<_> = variables
+            .iter()
+            .filter(|(_, m)| !*m)
+            .map(|(n, _)| n.as_str())
+            .collect();
         if !mutable.is_empty() {
             output.push_str(&format!("  Mutable: {}\n", mutable.join(", ")));
         }
@@ -260,25 +286,13 @@ pub fn render_ascii_tree(
         .collect();
 
     // If no roots found (everything has incoming), start from node 0
-    let start_nodes = if roots.is_empty() {
-        vec![0]
-    } else {
-        roots
-    };
+    let start_nodes = if roots.is_empty() { vec![0] } else { roots };
 
     for (i, &root) in start_nodes.iter().enumerate() {
         if i > 0 {
             output.push('\n');
         }
-        render_node(
-            &mut output,
-            labels,
-            edges,
-            root,
-            "",
-            true,
-            &mut visited,
-        );
+        render_node(&mut output, labels, edges, root, "", true, &mut visited);
     }
 
     output
@@ -366,7 +380,15 @@ fn render_node(
                     if let Some(grandchildren) = edges.get(child) {
                         for (j, (grandchild, _gc_edge)) in grandchildren.iter().enumerate() {
                             let gc_is_last = j == grandchildren.len() - 1;
-                            render_node(output, labels, edges, *grandchild, &deeper_prefix, gc_is_last, visited);
+                            render_node(
+                                output,
+                                labels,
+                                edges,
+                                *grandchild,
+                                &deeper_prefix,
+                                gc_is_last,
+                                visited,
+                            );
                         }
                     }
                 }

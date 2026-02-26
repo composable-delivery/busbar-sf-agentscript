@@ -64,12 +64,9 @@ pub(crate) fn connection_block<'tokens, 'src: 'tokens>() -> impl Parser<
 /// Parse the legacy `connections:` block and emit an error.
 /// This parser exists to provide a helpful error message when users
 /// use the old syntax.
-pub(crate) fn legacy_connections_block<'tokens, 'src: 'tokens>() -> impl Parser<
-    'tokens,
-    ParserInput<'tokens, 'src>,
-    (),
-    extra::Err<Rich<'tokens, Token<'src>, Span>>,
-> + Clone {
+pub(crate) fn legacy_connections_block<'tokens, 'src: 'tokens>(
+) -> impl Parser<'tokens, ParserInput<'tokens, 'src>, (), extra::Err<Rich<'tokens, Token<'src>, Span>>>
+       + Clone {
     just(Token::Connections)
         .then_ignore(just(Token::Colon))
         .validate(|_, e, emitter| {

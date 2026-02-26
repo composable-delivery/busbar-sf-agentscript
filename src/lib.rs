@@ -31,9 +31,7 @@
 pub use busbar_sf_agentscript_parser as parser;
 
 #[cfg(feature = "parser")]
-pub use busbar_sf_agentscript_parser::{
-    parse, serialize, validate_ast, AgentFile, Spanned,
-};
+pub use busbar_sf_agentscript_parser::{parse, serialize, validate_ast, AgentFile, Spanned};
 
 #[cfg(feature = "graph")]
 pub use busbar_sf_agentscript_graph as graph;
