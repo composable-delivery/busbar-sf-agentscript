@@ -3,6 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/busbar-sf-agentscript.svg)](https://crates.io/crates/busbar-sf-agentscript)
 [![docs.rs](https://docs.rs/busbar-sf-agentscript/badge.svg)](https://docs.rs/busbar-sf-agentscript)
 [![CI](https://github.com/composable-delivery/busbar-sf-agentscript/actions/workflows/ci.yml/badge.svg)](https://github.com/composable-delivery/busbar-sf-agentscript/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/composable-delivery/busbar-sf-agentscript/branch/main/graph/badge.svg)](https://codecov.io/gh/composable-delivery/busbar-sf-agentscript)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
 AgentScript parser, graph analysis, and LSP for [Salesforce Agentforce](https://www.salesforce.com/agentforce/).
