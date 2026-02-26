@@ -1,0 +1,242 @@
+================================================================================
+Expression - literals
+================================================================================
+
+variables:
+   s: mutable string = "hello"
+   n: mutable number = 42
+   b: mutable boolean = True
+   x: mutable object = None
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (string))))
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (number))))
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (boolean))))
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (none))))))
+
+================================================================================
+Expression - reference
+================================================================================
+
+variables:
+   x: mutable string = @variables.name
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (reference))))))
+
+================================================================================
+Expression - binary operators
+================================================================================
+
+variables:
+   x: mutable boolean = @variables.a == @variables.b
+   y: mutable boolean = @variables.a and @variables.b
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (binary_expression
+          (expression
+            (primary_expression
+              (reference)))
+          (comparison_operator)
+          (expression
+            (primary_expression
+              (reference))))))
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (binary_expression
+          (expression
+            (primary_expression
+              (reference)))
+          (expression
+            (primary_expression
+              (reference))))))))
+
+================================================================================
+Expression - ternary
+================================================================================
+
+variables:
+   x: mutable string = "yes" if @variables.flag else "no"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (ternary_expression
+          then: (expression
+            (primary_expression
+              (string)))
+          condition: (expression
+            (primary_expression
+              (reference)))
+          else: (expression
+            (primary_expression
+              (string))))))))
+
+================================================================================
+Expression - list
+================================================================================
+
+variables:
+   items: mutable list[string] = ["a", "b", "c"]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type
+        (list_type
+          (type)))
+      (expression
+        (primary_expression
+          (list
+            (expression
+              (primary_expression
+                (string)))
+            (expression
+              (primary_expression
+                (string)))
+            (expression
+              (primary_expression
+                (string)))))))))
+
+================================================================================
+Expression - is operator (identity check)
+================================================================================
+
+variables:
+   x: mutable boolean = @variables.profile is None
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (binary_expression
+          (expression
+            (primary_expression
+              (reference)))
+          (identity_operator)
+          (expression
+            (primary_expression
+              (none))))))))
+
+================================================================================
+Expression - is not operator (identity check)
+================================================================================
+
+variables:
+   x: mutable boolean = @variables.data is not None
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (binary_expression
+          (expression
+            (primary_expression
+              (reference)))
+          (identity_operator)
+          (expression
+            (primary_expression
+              (none))))))))
+
+================================================================================
+Expression - combined identity and comparison
+================================================================================
+
+variables:
+   x: mutable boolean = @variables.a is not None and @variables.b == "test"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (binary_expression
+          (expression
+            (binary_expression
+              (expression
+                (primary_expression
+                  (reference)))
+              (identity_operator)
+              (expression
+                (primary_expression
+                  (none)))))
+          (expression
+            (binary_expression
+              (expression
+                (primary_expression
+                  (reference)))
+              (comparison_operator)
+              (expression
+                (primary_expression
+                  (string))))))))))

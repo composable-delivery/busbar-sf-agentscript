@@ -1,0 +1,46 @@
+================================================================================
+Variables block - simple
+================================================================================
+
+variables:
+   name: mutable string
+   count: mutable number = 0
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type))
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (expression
+        (primary_expression
+          (number))))))
+
+================================================================================
+Variables block - with description
+================================================================================
+
+variables:
+   user_name: mutable string
+      description: "The user's name"
+      label: "Name"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (variables_block
+    (variable_def
+      (identifier)
+      (variable_modifier)
+      (type)
+      (variable_entry
+        (description_entry
+          (string)))
+      (variable_entry
+        (string)))))

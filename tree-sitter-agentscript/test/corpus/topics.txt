@@ -1,0 +1,196 @@
+================================================================================
+Topic block - minimal
+================================================================================
+
+topic main:
+   description: "Main topic"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (description_entry
+        (string)))))
+
+================================================================================
+Topic block - with reasoning
+================================================================================
+
+topic main:
+   description: "Main topic"
+   reasoning:
+      instructions: "Help the user"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (description_entry
+        (string)))
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (string)))))))
+
+================================================================================
+Topic block - with reasoning actions
+================================================================================
+
+topic main:
+   description: "Main topic"
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         greet: @actions.say_hello
+            description: "Greet the user"
+            with name=@variables.user_name
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (description_entry
+        (string)))
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (string)))
+        (reasoning_entry
+          (reasoning_actions_block
+            (reasoning_action
+              name: (identifier)
+              target: (reasoning_target
+                (reference))
+              (reasoning_action_entry
+                (description_entry
+                  (string)))
+              (reasoning_action_entry
+                (with_clause
+                  param: (identifier)
+                  value: (expression
+                    (primary_expression
+                      (reference))))))))))))
+
+================================================================================
+Topic block - topic delegation
+================================================================================
+
+topic main:
+   reasoning:
+      actions:
+         consult: @topic.specialist
+            description: "Delegate to specialist topic"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (reasoning_actions_block
+            (reasoning_action
+              name: (identifier)
+              target: (reasoning_target
+                (topic_reference))
+              (reasoning_action_entry
+                (description_entry
+                  (string))))))))))
+
+================================================================================
+Topic block - utils transition
+================================================================================
+
+topic main:
+   reasoning:
+      actions:
+         go_next: @utils.transition to @topic.next_topic
+            description: "Navigate to next topic"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (reasoning_actions_block
+            (reasoning_action
+              name: (identifier)
+              target: (reasoning_target
+                (utils_transition)
+                (reference))
+              (reasoning_action_entry
+                (description_entry
+                  (string))))))))))
+
+================================================================================
+Topic block - utils escalate
+================================================================================
+
+topic main:
+   reasoning:
+      actions:
+         escalate: @utils.escalate
+            description: "Connect to human agent"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (reasoning_actions_block
+            (reasoning_action
+              name: (identifier)
+              target: (reasoning_target
+                (utils_escalate))
+              (reasoning_action_entry
+                (description_entry
+                  (string))))))))))
+
+================================================================================
+Topic block - utils setVariables
+================================================================================
+
+topic main:
+   reasoning:
+      actions:
+         save_info: @utils.setVariables
+            description: "Save user information"
+            with customer_name=@inputs.name
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (reasoning_actions_block
+            (reasoning_action
+              name: (identifier)
+              target: (reasoning_target
+                (utils_set_variables))
+              (reasoning_action_entry
+                (description_entry
+                  (string)))
+              (reasoning_action_entry
+                (with_clause
+                  param: (identifier)
+                  value: (expression
+                    (primary_expression
+                      (reference))))))))))))

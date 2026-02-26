@@ -1,0 +1,134 @@
+================================================================================
+Instructions - simple string
+================================================================================
+
+topic main:
+   reasoning:
+      instructions: "Help the user with their request"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (string)))))))
+
+================================================================================
+Instructions - static multiline with pipe
+================================================================================
+
+topic main:
+   reasoning:
+      instructions:|
+         This is a multiline instruction.
+         It spans multiple lines.
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (plain_instruction_line
+              (instruction_text))
+            (plain_instruction_line
+              (instruction_text))))))))
+
+================================================================================
+Instructions - dynamic with conditional
+================================================================================
+
+topic main:
+   reasoning:
+      instructions:->
+         | Welcome to support!
+         if @variables.is_vip:
+            | Premium customer detected.
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (dynamic_instruction
+              (dynamic_instruction_line
+                (instruction_text_with_interpolation
+                  (instruction_text_segment))))
+            (dynamic_instruction
+              (if_instruction
+                (expression
+                  (primary_expression
+                    (reference)))
+                (dynamic_instruction
+                  (dynamic_instruction_line
+                    (instruction_text_with_interpolation
+                      (instruction_text_segment))))))))))))
+
+================================================================================
+Instructions - dynamic with interpolation
+================================================================================
+
+topic main:
+   reasoning:
+      instructions:->
+         | Hello {!@variables.user_name}!
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (dynamic_instruction
+              (dynamic_instruction_line
+                (instruction_text_with_interpolation
+                  (instruction_text_segment)
+                  (interpolation
+                    (interpolation_start)
+                    (expression
+                      (primary_expression
+                        (reference))))
+                  (instruction_text_segment))))))))))
+
+================================================================================
+Instructions - transition in dynamic instruction
+================================================================================
+
+topic main:
+   reasoning:
+      instructions:->
+         if @variables.fraud_flag:
+            @utils.transition to @topic.fraud_review
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (topic_block
+    (identifier)
+    (topic_entry
+      (reasoning_block
+        (reasoning_entry
+          (instructions_block
+            (dynamic_instruction
+              (if_instruction
+                (expression
+                  (primary_expression
+                    (reference)))
+                (dynamic_instruction
+                  (transition_instruction
+                    (utils_transition)
+                    (reference)))))))))))

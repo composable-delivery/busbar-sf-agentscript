@@ -1,0 +1,47 @@
+{
+  "name": "tree-sitter-agentscript",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for Salesforce AgentScript",
+  "main": "bindings/node",
+  "types": "bindings/node",
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "salesforce",
+    "agentscript",
+    "agentforce"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/composable-delivery/sf-agentscript.git"
+  },
+  "author": "Composable Delivery",
+  "license": "MIT",
+  "dependencies": {
+    "nan": "^2.18.0",
+    "node-gyp-build": "^4.8.0"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.22.6"
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "prebuild": "tree-sitter generate",
+    "build": "tree-sitter generate && node-gyp rebuild",
+    "test": "tree-sitter test",
+    "parse": "tree-sitter parse",
+    "generate": "tree-sitter generate"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.agentscript",
+      "file-types": [
+        "agent"
+      ],
+      "injection-regex": "^agentscript$",
+      "highlights": "queries/highlights.scm",
+      "folds": "queries/folds.scm",
+      "locals": "queries/locals.scm"
+    }
+  ]
+}
