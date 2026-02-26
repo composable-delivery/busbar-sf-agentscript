@@ -102,6 +102,18 @@ zed-extension/             Zed editor extension
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions are welcome.
 
+### Local setup
+
+```bash
+git clone https://github.com/composable-delivery/busbar-sf-agentscript
+cd busbar-sf-agentscript
+git submodule update --init         # recipe test fixtures
+git config core.hooksPath .githooks # enable pre-commit checks
+```
+
+The pre-commit hook runs `cargo fmt --check` and `cargo clippy -- -D warnings`
+before every commit, matching CI exactly.
+
 ## License
 
 Licensed under either of

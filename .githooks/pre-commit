@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "🔍 cargo fmt --check..."
+if ! cargo fmt --all --check; then
+    echo ""
+    echo "❌ Format check failed. Run: cargo fmt --all"
+    exit 1
+fi
+
+echo "📎 cargo clippy..."
+if ! cargo clippy --workspace --all-targets --all-features -- -D warnings 2>&1; then
+    echo ""
+    echo "❌ Clippy failed. Fix the issues above."
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed."
