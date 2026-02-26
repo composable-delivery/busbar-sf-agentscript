@@ -1121,7 +1121,7 @@ mod tests {
         let w = Writer::new();
         assert_eq!(w.expr_to_string(&Expr::String("test".to_string())), "\"test\"");
         assert_eq!(w.expr_to_string(&Expr::Number(42.0)), "42");
-        assert_eq!(w.expr_to_string(&Expr::Number(3.14)), "3.14");
+        assert_eq!(w.expr_to_string(&Expr::Number(3.15)), "3.15");
         assert_eq!(w.expr_to_string(&Expr::Bool(true)), "True");
         assert_eq!(w.expr_to_string(&Expr::Bool(false)), "False");
         assert_eq!(w.expr_to_string(&Expr::None), "None");

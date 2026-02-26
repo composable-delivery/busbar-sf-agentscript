@@ -716,7 +716,7 @@ mod tests {
 
     #[test]
     fn test_number_literals() {
-        let input = "42 3.14 0";
+        let input = "42 3.15 0";
         let result = lexer().parse(input).into_result();
         assert!(result.is_ok());
         let tokens: Vec<_> = result.unwrap().into_iter().map(|(t, _)| t).collect();
@@ -724,7 +724,7 @@ mod tests {
             tokens,
             vec![
                 Token::NumberLit(42.0),
-                Token::NumberLit(3.14),
+                Token::NumberLit(3.15),
                 Token::NumberLit(0.0),
             ]
         );

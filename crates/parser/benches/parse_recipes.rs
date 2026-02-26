@@ -19,18 +19,16 @@ fn load_recipes() -> Vec<(String, String)> {
     ];
 
     for pattern in patterns {
-        for entry in glob(pattern).expect("Failed to read glob pattern") {
-            if let Ok(path) = entry {
-                if let Ok(content) = fs::read_to_string(&path) {
-                    let name = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-                    // Avoid duplicates
-                    if !recipes.iter().any(|(n, _)| n == &name) {
-                        recipes.push((name, content));
-                    }
+        for path in glob(pattern).expect("Failed to read glob pattern").flatten() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                // Avoid duplicates
+                if !recipes.iter().any(|(n, _)| n == &name) {
+                    recipes.push((name, content));
                 }
             }
         }

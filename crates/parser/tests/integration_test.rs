@@ -266,8 +266,8 @@ topic main:
         let tokens: Vec<_> = result
             .output()
             .unwrap()
-            .into_iter()
-            .map(|(t, _)| t)
+            .iter()
+            .map(|(t, _)| t.clone())
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
