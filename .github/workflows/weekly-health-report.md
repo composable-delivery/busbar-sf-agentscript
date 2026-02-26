@@ -4,16 +4,18 @@ labels: ["reporting", "automation"]
 
 on:
   schedule:
-    - cron: "0 8 * * 1"  # Every Monday at 08:00 UTC
+    - cron: "weekly on monday"
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
+  actions: read
+  issues: read
+  pull-requests: read
 
 tools:
   github:
-    toolsets: [issues, pull-requests, repo, actions]
+    toolsets: [issues, pull_requests, repos, actions]
   bash:
     - "cargo"
     - "grep"

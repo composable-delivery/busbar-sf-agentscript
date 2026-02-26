@@ -10,12 +10,12 @@ on:
 
 permissions:
   actions: read
+  issues: read
   contents: read
-  issues: write
 
 tools:
   github:
-    toolsets: [actions, issues, repo]
+    toolsets: [actions, issues, repos]
   bash: ["cargo", "grep", "cat", "head", "tail"]
 
 safe-outputs:

@@ -4,16 +4,16 @@ labels: ["quality", "automation"]
 
 on:
   schedule:
-    - cron: "0 12 * * *"  # Daily at 12:00 UTC
+    - cron: "daily"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 tools:
   github:
-    toolsets: [pull-requests, repo]
+    toolsets: [pull_requests, repos]
   bash:
     - "git"
     - "cargo"

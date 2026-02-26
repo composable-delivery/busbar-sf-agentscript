@@ -18,11 +18,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 tools:
   github:
-    toolsets: [pull-requests, repo]
+    toolsets: [pull_requests, repos]
   bash:
     - "git"
     - "grep"

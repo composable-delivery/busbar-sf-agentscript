@@ -13,7 +13,7 @@ permissions:
 
 tools:
   github:
-    toolsets: [issues, labels, repo]
+    toolsets: [issues, labels, repos]
     lockdown: false
 
 safe-outputs:

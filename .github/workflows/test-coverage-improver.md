@@ -4,17 +4,17 @@ labels: ["testing", "quality"]
 
 on:
   schedule:
-    - cron: "0 11 * * *"  # Daily at 11:00 UTC
+    - cron: "daily"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
   issues: read
+  contents: read
+  pull-requests: read
 
 tools:
   github:
-    toolsets: [pull-requests, repo, issues]
+    toolsets: [pull_requests, repos, issues]
   bash:
     - "cargo"
     - "grep"

@@ -4,17 +4,17 @@ labels: ["parser-gaps", "automation"]
 
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+    - cron: "weekly on monday"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  issues: read
+  pull-requests: read
 
 tools:
   github:
-    toolsets: [issues, pull-requests, repo]
+    toolsets: [issues, pull_requests, repos]
   bash:
     - "git"
     - "cargo"
