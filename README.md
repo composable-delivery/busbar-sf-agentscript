@@ -7,17 +7,6 @@
 
 AgentScript parser, graph analysis, and LSP for [Salesforce Agentforce](https://www.salesforce.com/agentforce/).
 
-Part of the [busbar](https://busbar.dev) suite of Salesforce Rust crates alongside
-[busbar-sf-api](https://crates.io/crates/busbar-sf-api) and [busbar-sf-types](https://crates.io/crates/busbar-sf-types).
-
-## Crates
-
-| Crate | Version | Description |
-|-------|---------|-------------|
-| [`busbar-sf-agentscript`](https://crates.io/crates/busbar-sf-agentscript) | [![crates.io](https://img.shields.io/crates/v/busbar-sf-agentscript.svg)](https://crates.io/crates/busbar-sf-agentscript) | Umbrella crate — select features |
-| [`busbar-sf-agentscript-parser`](https://crates.io/crates/busbar-sf-agentscript-parser) | [![crates.io](https://img.shields.io/crates/v/busbar-sf-agentscript-parser.svg)](https://crates.io/crates/busbar-sf-agentscript-parser) | Lexer, AST, serializer, validator |
-| [`busbar-sf-agentscript-graph`](https://crates.io/crates/busbar-sf-agentscript-graph) | [![crates.io](https://img.shields.io/crates/v/busbar-sf-agentscript-graph.svg)](https://crates.io/crates/busbar-sf-agentscript-graph) | Reference graph, cycle detection, dead code |
-
 ## Quick Start
 
 ```toml
@@ -28,9 +17,8 @@ busbar-sf-agentscript = "0.1"
 # Parser only
 busbar-sf-agentscript = { version = "0.1", default-features = false, features = ["parser"] }
 
-# Or depend on sub-crates directly
-busbar-sf-agentscript-parser = "0.1"
-busbar-sf-agentscript-graph  = "0.1"
+# Parser + graph analysis
+busbar-sf-agentscript = { version = "0.1", default-features = false, features = ["graph"] }
 ```
 
 ```rust
