@@ -204,3 +204,162 @@ impl GraphStats {
         self.transitions + self.invocations + self.reads + self.writes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::RefGraph;
+
+    fn parse_and_build(source: &str) -> RefGraph {
+        let ast = busbar_sf_agentscript_parser::parse(source).expect("Failed to parse");
+        RefGraph::from_ast(&ast).expect("Failed to build graph")
+    }
+
+    /// Source with two topics and a one-way transition: start → topic_a → topic_b.
+    fn two_topic_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+"#
+    }
+
+    #[test]
+    fn test_find_outgoing_transitions_from_topic_a() {
+        // topic_a transitions to topic_b via @utils.transition, so
+        // find_outgoing_transitions(topic_a) should return [topic_b].
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let result = graph.find_outgoing_transitions(topic_a_idx);
+        assert_eq!(result.len(), 1, "Expected exactly 1 outgoing transition from topic_a");
+        assert_eq!(
+            result.nodes[0], topic_b_idx,
+            "Expected transition target to be topic_b"
+        );
+    }
+
+    #[test]
+    fn test_find_incoming_transitions_to_topic_b() {
+        // topic_b is only reachable from topic_a, so find_incoming_transitions(topic_b)
+        // should return [topic_a].
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let result = graph.find_incoming_transitions(topic_b_idx);
+        assert_eq!(result.len(), 1, "Expected exactly 1 incoming transition to topic_b");
+        assert_eq!(
+            result.nodes[0], topic_a_idx,
+            "Expected transition source to be topic_a"
+        );
+    }
+
+    #[test]
+    fn test_find_outgoing_transitions_empty_for_leaf_topic() {
+        // topic_b has no outgoing transitions — it is a leaf node.
+        let graph = parse_and_build(two_topic_source());
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let result = graph.find_outgoing_transitions(topic_b_idx);
+        assert!(
+            result.is_empty(),
+            "Expected no outgoing transitions from leaf topic_b"
+        );
+    }
+
+    #[test]
+    fn test_topic_execution_order_for_acyclic_graph() {
+        // An acyclic start → topic_a → topic_b graph should yield a valid topological
+        // ordering where topic_a appears before topic_b.
+        let graph = parse_and_build(two_topic_source());
+        let order = graph.topic_execution_order();
+        assert!(
+            order.is_some(),
+            "Expected a valid topological order for an acyclic graph"
+        );
+
+        let order = order.unwrap();
+        let topic_a_pos = order
+            .iter()
+            .position(|&idx| idx == graph.get_topic("topic_a").unwrap());
+        let topic_b_pos = order
+            .iter()
+            .position(|&idx| idx == graph.get_topic("topic_b").unwrap());
+
+        assert!(topic_a_pos.is_some(), "topic_a should appear in execution order");
+        assert!(topic_b_pos.is_some(), "topic_b should appear in execution order");
+        assert!(
+            topic_a_pos.unwrap() < topic_b_pos.unwrap(),
+            "topic_a should come before topic_b in topological order"
+        );
+    }
+
+    #[test]
+    fn test_stats_counts_nodes_correctly() {
+        // Verify that stats() correctly counts topics, action defs, and variables.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order ID"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_order:
+         description: "Gets an order"
+         inputs:
+            id: string
+               description: "Order identifier"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+"#;
+        let graph = parse_and_build(source);
+        let stats = graph.stats();
+
+        assert_eq!(stats.topics, 1, "Expected 1 topic");
+        assert!(stats.has_start_agent, "Expected start_agent to be present");
+        assert_eq!(stats.action_defs, 1, "Expected 1 action def (get_order)");
+        assert_eq!(stats.variables, 1, "Expected 1 variable (order_id)");
+        // At least one edge should exist (the Routes edge from start_agent → main)
+        assert!(
+            graph.edge_count() > 0,
+            "Expected at least one edge in the graph"
+        );
+    }
+}
