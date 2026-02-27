@@ -2,10 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**", "fix/**", "chore/**", "dev"]
   pull_request:
-    branches: [main]
   workflow_dispatch:
+
+# Cancel in-progress runs on the same branch when a newer commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
