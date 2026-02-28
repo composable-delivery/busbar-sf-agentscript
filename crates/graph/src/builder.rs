@@ -211,31 +211,13 @@ impl RefGraphBuilder {
 
                 if let Some(actions) = &reasoning.node.actions {
                     for action in &actions.node {
-                        // Check for transition targets
-                        if let ReasoningActionTarget::TransitionTo(ref reference) =
-                            action.node.target.node
-                        {
-                            if let Some(topic_name) = Self::extract_topic_from_ref(reference) {
-                                if let Some(&topic_idx) = self.topics.get(&topic_name) {
-                                    self.graph.add_edge(start_idx, topic_idx, RefEdge::Routes);
-                                } else {
-                                    self.unresolved_references.push(
-                                        ValidationError::UnresolvedReference {
-                                            reference: reference.full_path(),
-                                            namespace: "topic".to_string(),
-                                            span: (
-                                                action.node.target.span.start,
-                                                action.node.target.span.end,
-                                            ),
-                                            context: "start_agent".to_string(),
-                                        },
-                                    );
-                                }
-                            }
-                        }
-                        if let ReasoningActionTarget::TopicDelegate(ref reference) =
-                            action.node.target.node
-                        {
+                        // Both TransitionTo and TopicDelegate route to a topic from start_agent
+                        let routing_ref = match &action.node.target.node {
+                            ReasoningActionTarget::TransitionTo(r)
+                            | ReasoningActionTarget::TopicDelegate(r) => Some(r),
+                            _ => None,
+                        };
+                        if let Some(reference) = routing_ref {
                             if let Some(topic_name) = Self::extract_topic_from_ref(reference) {
                                 if let Some(&topic_idx) = self.topics.get(&topic_name) {
                                     self.graph.add_edge(start_idx, topic_idx, RefEdge::Routes);
