@@ -78,7 +78,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-features
 
-  wasm-parser:
+  wasm-agentscript:
     name: WASM check / agentscript
     runs-on: ubuntu-latest
     needs: [rust-fmt, rust-clippy]
@@ -188,7 +188,7 @@ jobs:
       - test-agentscript
       - test-lsp
       - test-umbrella
-      - wasm-parser
+      - wasm-agentscript
       - rust-docs
       - rust-deny
       - rust-audit
