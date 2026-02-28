@@ -263,10 +263,7 @@ topic topic_b:
 "#;
         let graph = parse_and_build(source);
         let cycles = graph.find_cycles();
-        assert!(
-            !cycles.is_empty(),
-            "Expected a cycle between topic_a and topic_b"
-        );
+        assert!(!cycles.is_empty(), "Expected a cycle between topic_a and topic_b");
         let cycle_names: Vec<_> = cycles
             .iter()
             .flat_map(|e| {
@@ -312,10 +309,7 @@ topic orphan:
 "#;
         let graph = parse_and_build(source);
         let unreachable = graph.find_unreachable_topics();
-        assert!(
-            !unreachable.is_empty(),
-            "Expected 'orphan' to be detected as unreachable"
-        );
+        assert!(!unreachable.is_empty(), "Expected 'orphan' to be detected as unreachable");
         let unreachable_names: Vec<_> = unreachable
             .iter()
             .filter_map(|e| {
@@ -332,10 +326,7 @@ topic orphan:
             unreachable_names
         );
         // 'help' IS reachable so it should not appear
-        assert!(
-            !unreachable_names.contains(&"help".to_string()),
-            "'help' should be reachable"
-        );
+        assert!(!unreachable_names.contains(&"help".to_string()), "'help' should be reachable");
     }
 
     #[test]
@@ -364,10 +355,7 @@ topic main:
 "#;
         let graph = parse_and_build(source);
         let unused = graph.find_unused_actions();
-        assert!(
-            !unused.is_empty(),
-            "Expected 'get_data' to be detected as unused"
-        );
+        assert!(!unused.is_empty(), "Expected 'get_data' to be detected as unused");
         let unused_names: Vec<_> = unused
             .iter()
             .filter_map(|e| {
@@ -403,10 +391,7 @@ topic main:
 "#;
         let graph = parse_and_build(source);
         let unused = graph.find_unused_variables();
-        assert!(
-            !unused.is_empty(),
-            "Expected 'customer_name' to be detected as unused"
-        );
+        assert!(!unused.is_empty(), "Expected 'customer_name' to be detected as unused");
         let unused_names: Vec<_> = unused
             .iter()
             .filter_map(|e| {
@@ -495,11 +480,7 @@ topic main:
 "#;
         let graph = parse_and_build(source);
         let result = graph.validate();
-        assert!(
-            result.errors.is_empty(),
-            "Expected no errors, got: {:?}",
-            result.errors
-        );
+        assert!(result.errors.is_empty(), "Expected no errors, got: {:?}", result.errors);
         // The action is invoked, so no unused-action warnings expected
         let unused_action_warns: Vec<_> = result
             .warnings

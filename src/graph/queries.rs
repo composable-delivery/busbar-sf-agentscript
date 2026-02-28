@@ -207,10 +207,10 @@ impl GraphStats {
 
 #[cfg(test)]
 mod tests {
-    use crate::RefGraph;
+    use crate::graph::RefGraph;
 
     fn parse_and_build(source: &str) -> RefGraph {
-        let ast = busbar_sf_agentscript_parser::parse(source).expect("Failed to parse");
+        let ast = crate::parse(source).expect("Failed to parse");
         RefGraph::from_ast(&ast).expect("Failed to build graph")
     }
 
@@ -252,10 +252,7 @@ topic topic_b:
 
         let result = graph.find_outgoing_transitions(topic_a_idx);
         assert_eq!(result.len(), 1, "Expected exactly 1 outgoing transition from topic_a");
-        assert_eq!(
-            result.nodes[0], topic_b_idx,
-            "Expected transition target to be topic_b"
-        );
+        assert_eq!(result.nodes[0], topic_b_idx, "Expected transition target to be topic_b");
     }
 
     #[test]
@@ -268,10 +265,7 @@ topic topic_b:
 
         let result = graph.find_incoming_transitions(topic_b_idx);
         assert_eq!(result.len(), 1, "Expected exactly 1 incoming transition to topic_b");
-        assert_eq!(
-            result.nodes[0], topic_a_idx,
-            "Expected transition source to be topic_a"
-        );
+        assert_eq!(result.nodes[0], topic_a_idx, "Expected transition source to be topic_a");
     }
 
     #[test]
@@ -281,10 +275,7 @@ topic topic_b:
         let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
 
         let result = graph.find_outgoing_transitions(topic_b_idx);
-        assert!(
-            result.is_empty(),
-            "Expected no outgoing transitions from leaf topic_b"
-        );
+        assert!(result.is_empty(), "Expected no outgoing transitions from leaf topic_b");
     }
 
     #[test]
@@ -293,10 +284,7 @@ topic topic_b:
         // ordering where topic_a appears before topic_b.
         let graph = parse_and_build(two_topic_source());
         let order = graph.topic_execution_order();
-        assert!(
-            order.is_some(),
-            "Expected a valid topological order for an acyclic graph"
-        );
+        assert!(order.is_some(), "Expected a valid topological order for an acyclic graph");
 
         let order = order.unwrap();
         let topic_a_pos = order
@@ -357,9 +345,6 @@ topic main:
         assert_eq!(stats.action_defs, 1, "Expected 1 action def (get_order)");
         assert_eq!(stats.variables, 1, "Expected 1 variable (order_id)");
         // At least one edge should exist (the Routes edge from start_agent → main)
-        assert!(
-            graph.edge_count() > 0,
-            "Expected at least one edge in the graph"
-        );
+        assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
 }
