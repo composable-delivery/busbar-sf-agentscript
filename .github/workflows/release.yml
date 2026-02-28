@@ -136,6 +136,33 @@ jobs:
           path: busbar-sf-agentscript-lsp-${{ matrix.target }}.exe
           if-no-files-found: error
 
+  build-zed-extension:
+    name: Build Zed extension
+    runs-on: ubuntu-latest
+    needs: [validate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zed-wasm32-wasip2
+          workspaces: zed-extension
+      - name: Build Zed extension
+        run: cargo build --release --manifest-path zed-extension/Cargo.toml --target wasm32-wasip2
+      - name: Copy extension.wasm
+        run: |
+          cp zed-extension/target/wasm32-wasip2/release/busbar_sf_agentscript_zed.wasm \
+             zed-extension/extension.wasm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zed-extension
+          path: |
+            zed-extension/extension.wasm
+            zed-extension/extension.toml
+          if-no-files-found: error
+
   build-wasm-parser:
     name: Build WASM / parser
     runs-on: ubuntu-latest
@@ -279,6 +306,7 @@ jobs:
       - build-lsp
       - build-wasm-parser
       - build-wasm-graph
+      - build-zed-extension
       - package-vscode
       - publish-tree-sitter-npm
     steps:
@@ -296,6 +324,9 @@ jobs:
           # WASM artifacts as zip bundles
           cd release-artifacts/wasm-parser && zip -r ../../release-upload/wasm-parser.zip . && cd ../..
           cd release-artifacts/wasm-graph  && zip -r ../../release-upload/wasm-graph.zip  . && cd ../..
+          # Zed extension artifact
+          cd release-artifacts/zed-extension && zip -r ../../release-upload/zed-extension.zip . && cd ../..
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

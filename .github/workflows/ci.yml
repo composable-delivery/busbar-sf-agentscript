@@ -161,6 +161,22 @@ jobs:
       - run: npm ci
       - run: npm run compile
 
+  zed-build:
+    name: Zed Extension Build
+    runs-on: ubuntu-latest
+    needs: [rust-fmt, rust-clippy]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zed-wasm32-wasip2
+          workspaces: zed-extension
+      - name: Build Zed extension
+        run: cargo build --manifest-path zed-extension/Cargo.toml --target wasm32-wasip2
+
   tree-sitter-check:
     name: Tree-sitter Grammar Check
     runs-on: ubuntu-latest
@@ -194,6 +210,7 @@ jobs:
       - rust-audit
       - rust-coverage
       - vscode-build
+      - zed-build
       - tree-sitter-check
     steps:
       - run: echo "All CI jobs passed"
