@@ -1,5 +1,5 @@
 {
-  "name": "tree-sitter-agentscript",
+  "name": "busbar-tree-sitter-agentscript",
   "version": "0.1.0",
   "description": "Tree-sitter grammar for Salesforce AgentScript",
   "main": "bindings/node",

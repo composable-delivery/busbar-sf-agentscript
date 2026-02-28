@@ -1,5 +1,5 @@
 {
-  "name": "vscode-agentscript",
+  "name": "busbar-vscode-agentscript",
   "displayName": "AgentScript",
   "description": "AgentScript language support for Salesforce Agentforce",
   "version": "0.1.0",
