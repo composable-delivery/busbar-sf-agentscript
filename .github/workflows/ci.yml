@@ -127,7 +127,7 @@ jobs:
   rust-coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [test-parser, test-graph, test-lsp, test-umbrella]
+    needs: [test-agentscript, test-lsp, test-umbrella]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -185,12 +185,10 @@ jobs:
     needs:
       - rust-fmt
       - rust-clippy
-      - test-parser
-      - test-graph
+      - test-agentscript
       - test-lsp
       - test-umbrella
       - wasm-parser
-      - wasm-graph
       - rust-docs
       - rust-deny
       - rust-audit

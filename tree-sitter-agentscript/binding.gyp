@@ -16,10 +16,10 @@
         "-Wno-unused-value"
       ],
       "cflags_cc": [
-        "-std=c++14"
+        "-std=c++17"
       ],
       "xcode_settings": {
-        "CLANG_CXX_LANGUAGE_STANDARD": "c++14",
+        "CLANG_CXX_LANGUAGE_STANDARD": "c++17",
         "OTHER_CFLAGS": [
           "-Wno-unused-value"
         ]
