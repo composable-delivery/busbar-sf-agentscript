@@ -42,7 +42,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-  test-parser:
+  test-agentscript:
     name: Test / parser
     runs-on: ubuntu-latest
     needs: [rust-fmt, rust-clippy]
@@ -52,19 +52,7 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test -p busbar-sf-agentscript-parser --all-features
-
-  test-graph:
-    name: Test / graph
-    runs-on: ubuntu-latest
-    needs: [rust-fmt, rust-clippy]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test -p busbar-sf-agentscript-graph --all-features
+      - run: cargo test -p busbar-sf-agentscript --all-features
 
   test-lsp:
     name: Test / lsp
@@ -91,7 +79,7 @@ jobs:
       - run: cargo test --all-features
 
   wasm-parser:
-    name: WASM check / parser
+    name: WASM check / agentscript
     runs-on: ubuntu-latest
     needs: [rust-fmt, rust-clippy]
     steps:
@@ -102,21 +90,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check -p busbar-sf-agentscript-parser --target wasm32-unknown-unknown --features wasm
-
-  wasm-graph:
-    name: WASM check / graph
-    runs-on: ubuntu-latest
-    needs: [rust-fmt, rust-clippy]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check -p busbar-sf-agentscript-graph --target wasm32-unknown-unknown --features wasm
+      - run: cargo check -p busbar-sf-agentscript --target wasm32-unknown-unknown --features wasm
 
   rust-docs:
     name: Rust Docs
