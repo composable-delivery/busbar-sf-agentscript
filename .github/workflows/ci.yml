@@ -159,15 +159,16 @@ jobs:
         with:
           node-version: "20"
       - name: Build WASM parser package
-        run: |
-          wasm-pack build crates/parser --target web --features wasm \
-            --out-name agentscript_parser \
-            --out-dir ../../pkg
+        run: wasm-pack build . --target web --features wasm --out-dir pkg
       - name: Build WASM graph package
         run: |
-          wasm-pack build crates/graph --target web --features wasm \
-            --out-name agentscript_graph \
-            --out-dir ../../pkg-graph
+          wasm-pack build . --target web --features wasm,graph --out-dir pkg-graph
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('pkg-graph/package.json', 'utf8'));
+            p.name = 'busbar-sf-agentscript-graph';
+            fs.writeFileSync('pkg-graph/package.json', JSON.stringify(p, null, 2));
+          "
       - name: Install plugin dependencies
         working-directory: plugin-agency/
         run: npm install
