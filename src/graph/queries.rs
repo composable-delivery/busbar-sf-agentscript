@@ -1,8 +1,8 @@
 //! Query operations on the reference graph.
 
-use crate::edges::RefEdge;
-use crate::nodes::RefNode;
-use crate::RefGraph;
+use super::edges::RefEdge;
+use super::nodes::RefNode;
+use super::RefGraph;
 use petgraph::algo::toposort;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;

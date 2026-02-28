@@ -1,14 +1,14 @@
 //! Builder for constructing a RefGraph from an AST.
 
-use crate::edges::RefEdge;
-use crate::error::{GraphBuildError, ValidationError};
-use crate::nodes::RefNode;
-use crate::RefGraph;
-use busbar_sf_agentscript_parser::ast::{
+use super::edges::RefEdge;
+use super::error::{GraphBuildError, ValidationError};
+use super::nodes::RefNode;
+use super::RefGraph;
+use crate::ast::{
     Expr, InstructionPart, Instructions, ReasoningAction, ReasoningActionTarget, Reference,
     VariableKind,
 };
-use busbar_sf_agentscript_parser::AgentFile;
+use crate::AgentFile;
 use petgraph::graph::{DiGraph, NodeIndex};
 use std::collections::HashMap;
 
@@ -268,7 +268,7 @@ impl RefGraphBuilder {
         &mut self,
         topic_name: &str,
         topic_idx: NodeIndex,
-        actions: &[busbar_sf_agentscript_parser::Spanned<ReasoningAction>],
+        actions: &[crate::Spanned<ReasoningAction>],
     ) -> Result<(), GraphBuildError> {
         for action in actions {
             let action_name = &action.node.name.node;
@@ -388,12 +388,12 @@ impl RefGraphBuilder {
     fn scan_instruction_part(
         &mut self,
         node_idx: NodeIndex,
-        part: &busbar_sf_agentscript_parser::Spanned<InstructionPart>,
+        part: &crate::Spanned<InstructionPart>,
     ) {
         match &part.node {
             InstructionPart::Text(_) => {}
             InstructionPart::Interpolation(expr) => {
-                let spanned_expr = busbar_sf_agentscript_parser::Spanned {
+                let spanned_expr = crate::Spanned {
                     node: expr.clone(),
                     span: part.span.clone(),
                 };
@@ -421,11 +421,11 @@ impl RefGraphBuilder {
     fn add_with_value_edges(
         &mut self,
         from_idx: NodeIndex,
-        value: &busbar_sf_agentscript_parser::Spanned<busbar_sf_agentscript_parser::ast::WithValue>,
+        value: &crate::Spanned<crate::ast::WithValue>,
     ) {
         match &value.node {
-            busbar_sf_agentscript_parser::ast::WithValue::Expr(expr) => {
-                let spanned_expr = busbar_sf_agentscript_parser::Spanned {
+            crate::ast::WithValue::Expr(expr) => {
+                let spanned_expr = crate::Spanned {
                     node: expr.clone(),
                     span: value.span.clone(),
                 };
@@ -435,11 +435,7 @@ impl RefGraphBuilder {
     }
 
     /// Add edges for variable reads within an expression.
-    fn add_expression_edges(
-        &mut self,
-        from_idx: NodeIndex,
-        expr: &busbar_sf_agentscript_parser::Spanned<Expr>,
-    ) {
+    fn add_expression_edges(&mut self, from_idx: NodeIndex, expr: &crate::Spanned<Expr>) {
         match &expr.node {
             Expr::Reference(reference) => {
                 if reference.namespace == "variables" {

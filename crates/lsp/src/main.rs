@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use busbar_sf_agentscript_graph::dependencies::{extract_dependencies, DependencyReport};
-use busbar_sf_agentscript_graph::{GraphRepr, RefGraphBuilder};
-use busbar_sf_agentscript_parser::ast::*;
-use busbar_sf_agentscript_parser::error::ParseErrorInfo;
+use busbar_sf_agentscript::ast::*;
+use busbar_sf_agentscript::error::ParseErrorInfo;
+use busbar_sf_agentscript::graph::dependencies::{extract_dependencies, DependencyReport};
+use busbar_sf_agentscript::graph::{GraphRepr, RefGraphBuilder};
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -23,13 +23,13 @@ struct DocumentState {
     source: String,
     ast: Option<AgentFile>,
     parse_errors: Vec<ParseErrorInfo>,
-    graph: Option<busbar_sf_agentscript_graph::RefGraph>,
+    graph: Option<busbar_sf_agentscript::graph::RefGraph>,
 }
 
 impl DocumentState {
     fn new(source: String) -> Self {
         let (ast, parse_errors) =
-            busbar_sf_agentscript_parser::parser::parse_with_structured_errors_all(&source);
+            busbar_sf_agentscript::parser::parse_with_structured_errors_all(&source);
 
         let graph = ast
             .as_ref()
@@ -84,16 +84,16 @@ impl Backend {
 
         // Semantic validation from the AST
         if let Some(ast) = &doc.ast {
-            let semantic_errors = busbar_sf_agentscript_parser::validate_ast(ast);
+            let semantic_errors = busbar_sf_agentscript::validate_ast(ast);
             for err in &semantic_errors {
                 if let Some(span) = &err.span {
                     diagnostics.push(Diagnostic {
                         range: span_to_range(&doc.source, span.clone()),
                         severity: Some(match err.severity {
-                            busbar_sf_agentscript_parser::validation::Severity::Error => {
+                            busbar_sf_agentscript::validation::Severity::Error => {
                                 DiagnosticSeverity::ERROR
                             }
-                            busbar_sf_agentscript_parser::validation::Severity::Warning => {
+                            busbar_sf_agentscript::validation::Severity::Warning => {
                                 DiagnosticSeverity::WARNING
                             }
                         }),
@@ -932,7 +932,7 @@ fn get_document_symbols(doc: &DocumentState) -> Vec<DocumentSymbol> {
 
 fn format_document(doc: &DocumentState) -> Option<Vec<TextEdit>> {
     let ast = doc.ast.as_ref()?;
-    let formatted = busbar_sf_agentscript_parser::serialize(ast);
+    let formatted = busbar_sf_agentscript::serialize(ast);
     if formatted == doc.source {
         return None;
     }

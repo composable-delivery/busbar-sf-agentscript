@@ -15,8 +15,7 @@ name = "busbar-sf-agentscript-lsp"
 path = "src/main.rs"
 
 [dependencies]
-busbar-sf-agentscript-parser = { workspace = true }
-busbar-sf-agentscript-graph  = { workspace = true }
+busbar-sf-agentscript = { workspace = true, features = ["graph"] }
 
 tower-lsp    = "0.20"
 tokio        = { version = "1.0", features = ["full"] }

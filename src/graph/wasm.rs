@@ -6,7 +6,7 @@
 //! - `export` - Serialization types
 //! - Core crate - Graph building, validation, queries
 
-use crate::{export, render, RefGraph};
+use super::{export, render, RefGraph};
 use wasm_bindgen::prelude::*;
 
 /// Initialize panic hook for better error messages in the browser console.
@@ -22,7 +22,7 @@ pub fn init() {
 /// Build a reference graph from an AgentScript AST.
 #[wasm_bindgen]
 pub fn build_graph(ast: JsValue) -> Result<JsValue, JsValue> {
-    let agent: busbar_sf_agentscript_parser::AgentFile = serde_wasm_bindgen::from_value(ast)
+    let agent: crate::AgentFile = serde_wasm_bindgen::from_value(ast)
         .map_err(|e| JsValue::from_str(&format!("Failed to deserialize AST: {}", e)))?;
 
     let graph = RefGraph::from_ast(&agent)
@@ -208,10 +208,9 @@ pub fn export_graphml(source: &str) -> Result<String, JsValue> {
 /// Extract all Salesforce org dependencies from AgentScript source.
 #[wasm_bindgen]
 pub fn extract_dependencies(source: &str) -> Result<JsValue, JsValue> {
-    let agent = busbar_sf_agentscript_parser::parse(source)
-        .map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
+    let agent = crate::parse(source).map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
 
-    let report = crate::dependencies::extract_dependencies(&agent);
+    let report = super::dependencies::extract_dependencies(&agent);
     serde_wasm_bindgen::to_value(&report)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
 }
@@ -219,27 +218,24 @@ pub fn extract_dependencies(source: &str) -> Result<JsValue, JsValue> {
 /// Check if a specific SObject is used in the source.
 #[wasm_bindgen]
 pub fn uses_sobject(source: &str, sobject_name: &str) -> Result<bool, JsValue> {
-    let agent = busbar_sf_agentscript_parser::parse(source)
-        .map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
-    let report = crate::dependencies::extract_dependencies(&agent);
+    let agent = crate::parse(source).map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
+    let report = super::dependencies::extract_dependencies(&agent);
     Ok(report.uses_sobject(sobject_name))
 }
 
 /// Check if a specific Flow is used in the source.
 #[wasm_bindgen]
 pub fn uses_flow(source: &str, flow_name: &str) -> Result<bool, JsValue> {
-    let agent = busbar_sf_agentscript_parser::parse(source)
-        .map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
-    let report = crate::dependencies::extract_dependencies(&agent);
+    let agent = crate::parse(source).map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
+    let report = super::dependencies::extract_dependencies(&agent);
     Ok(report.uses_flow(flow_name))
 }
 
 /// Check if a specific Apex class is used in the source.
 #[wasm_bindgen]
 pub fn uses_apex_class(source: &str, class_name: &str) -> Result<bool, JsValue> {
-    let agent = busbar_sf_agentscript_parser::parse(source)
-        .map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
-    let report = crate::dependencies::extract_dependencies(&agent);
+    let agent = crate::parse(source).map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
+    let report = super::dependencies::extract_dependencies(&agent);
     Ok(report.uses_apex_class(class_name))
 }
 
@@ -259,8 +255,7 @@ pub fn graph_version() -> String {
 
 /// Parse source and build graph - common helper to reduce duplication.
 fn parse_and_build(source: &str) -> Result<RefGraph, JsValue> {
-    let agent = busbar_sf_agentscript_parser::parse(source)
-        .map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
+    let agent = crate::parse(source).map_err(|errs| JsValue::from_str(&errs.join("\n")))?;
 
     RefGraph::from_ast(&agent)
         .map_err(|e| JsValue::from_str(&format!("Failed to build graph: {}", e)))

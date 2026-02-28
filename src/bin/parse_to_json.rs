@@ -2,7 +2,7 @@
 //!
 //! Usage: cargo run --bin parse_to_json <file.agent>
 
-use busbar_sf_agentscript_parser::{parse_with_structured_errors, ErrorReporter};
+use busbar_sf_agentscript::{parse_with_structured_errors, ErrorReporter};
 use std::env;
 use std::fs;
 use std::process;

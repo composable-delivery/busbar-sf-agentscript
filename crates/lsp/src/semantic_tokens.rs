@@ -1,4 +1,4 @@
-use busbar_sf_agentscript_parser::ast::*;
+use busbar_sf_agentscript::ast::*;
 use tower_lsp::lsp_types::*;
 
 // Token types: indices into this array are used by the LSP protocol

@@ -1,4 +1,4 @@
-use busbar_sf_agentscript_parser::lexer::lex_with_indentation;
+use busbar_sf_agentscript::lexer::lex_with_indentation;
 use std::env;
 use std::fs;
 

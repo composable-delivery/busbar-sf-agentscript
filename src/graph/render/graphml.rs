@@ -3,7 +3,7 @@
 //! GraphML is an XML-based format for graph exchange that is widely supported
 //! by graph visualization tools like yEd, Gephi, Cytoscape, etc.
 
-use crate::{RefGraph, RefNode};
+use super::super::{RefGraph, RefNode};
 use petgraph::visit::EdgeRef;
 use std::fmt::Write;
 

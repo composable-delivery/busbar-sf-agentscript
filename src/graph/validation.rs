@@ -1,9 +1,9 @@
 //! Validation and analysis of reference graphs.
 
-use crate::edges::RefEdge;
-use crate::error::ValidationError;
-use crate::nodes::RefNode;
-use crate::RefGraph;
+use super::edges::RefEdge;
+use super::error::ValidationError;
+use super::nodes::RefNode;
+use super::RefGraph;
 use petgraph::algo::{is_cyclic_directed, tarjan_scc};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
@@ -203,7 +203,7 @@ mod tests {
     use super::*;
 
     fn parse_and_build(source: &str) -> RefGraph {
-        let ast = busbar_sf_agentscript_parser::parse(source).expect("Failed to parse");
+        let ast = crate::parse(source).expect("Failed to parse");
         RefGraph::from_ast(&ast).expect("Failed to build graph")
     }
 

@@ -1,4 +1,4 @@
-use busbar_sf_agentscript_parser::parser;
+use busbar_sf_agentscript::parser;
 
 #[test]
 fn test_reasoning_minimal() {

@@ -17,7 +17,7 @@
 //! # Example
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::lexer::{lexer, lex_with_indentation, Token};
+//! use busbar_sf_agentscript::lexer::{lexer, lex_with_indentation, Token};
 //! use chumsky::prelude::*;  // For Parser trait
 //!
 //! // Basic tokenization

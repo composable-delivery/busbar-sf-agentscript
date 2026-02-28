@@ -13,7 +13,7 @@
 //! # Usage
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::parser::parse;
+//! use busbar_sf_agentscript::parser::parse;
 //!
 //! let source = r#"
 //! config:
@@ -41,7 +41,7 @@
 //! the result and any errors encountered:
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::parser::parse_with_errors;
+//! use busbar_sf_agentscript::parser::parse_with_errors;
 //!
 //! let source = "config:\n   agent_name: \"Test\"";
 //! let (result, errors) = parse_with_errors(source);

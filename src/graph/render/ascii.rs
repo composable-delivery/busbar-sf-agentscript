@@ -2,7 +2,7 @@
 //!
 //! Provides terminal-friendly tree and diagram output for RefGraph structures.
 
-use crate::{RefGraph, RefNode};
+use super::super::{RefGraph, RefNode};
 use petgraph::visit::EdgeRef;
 use std::collections::{HashMap, HashSet};
 

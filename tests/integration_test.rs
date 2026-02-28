@@ -3,7 +3,7 @@
 //! Each recipe file has its own test that MUST pass. This ensures the parser
 //! correctly handles all official Agentscript syntax.
 
-use busbar_sf_agentscript_parser::parse_source;
+use busbar_sf_agentscript::parse_source;
 
 /// Helper macro to generate a test for each recipe file.
 /// Each test reads the file, parses it, and asserts success.
@@ -40,27 +40,27 @@ macro_rules! recipe_test {
 
 recipe_test!(
     recipe_hello_world,
-    "../../../agent-script-recipes/force-app/main/01_languageEssentials/helloWorld/aiAuthoringBundles/HelloWorld/HelloWorld.agent"
+    "../agent-script-recipes/force-app/main/01_languageEssentials/helloWorld/aiAuthoringBundles/HelloWorld/HelloWorld.agent"
 );
 
 recipe_test!(
     recipe_language_settings,
-    "../../../agent-script-recipes/force-app/main/01_languageEssentials/languageSettings/aiAuthoringBundles/LanguageSettings/LanguageSettings.agent"
+    "../agent-script-recipes/force-app/main/01_languageEssentials/languageSettings/aiAuthoringBundles/LanguageSettings/LanguageSettings.agent"
 );
 
 recipe_test!(
     recipe_system_instruction_overrides,
-    "../../../agent-script-recipes/force-app/main/01_languageEssentials/systemInstructionOverrides/aiAuthoringBundles/SystemInstructionOverrides/SystemInstructionOverrides.agent"
+    "../agent-script-recipes/force-app/main/01_languageEssentials/systemInstructionOverrides/aiAuthoringBundles/SystemInstructionOverrides/SystemInstructionOverrides.agent"
 );
 
 recipe_test!(
     recipe_template_expressions,
-    "../../../agent-script-recipes/force-app/main/01_languageEssentials/templateExpressions/aiAuthoringBundles/TemplateExpressions/TemplateExpressions.agent", ignore
+    "../agent-script-recipes/force-app/main/01_languageEssentials/templateExpressions/aiAuthoringBundles/TemplateExpressions/TemplateExpressions.agent", ignore
 );
 
 recipe_test!(
     recipe_variable_management,
-    "../../../agent-script-recipes/force-app/main/01_languageEssentials/variableManagement/aiAuthoringBundles/VariableManagement/VariableManagement.agent"
+    "../agent-script-recipes/force-app/main/01_languageEssentials/variableManagement/aiAuthoringBundles/VariableManagement/VariableManagement.agent"
 );
 
 // =============================================================================
@@ -69,27 +69,27 @@ recipe_test!(
 
 recipe_test!(
     recipe_action_callbacks,
-    "../../../agent-script-recipes/force-app/main/02_actionConfiguration/actionCallbacks/aiAuthoringBundles/ActionCallbacks/ActionCallbacks.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/actionCallbacks/aiAuthoringBundles/ActionCallbacks/ActionCallbacks.agent", ignore
 );
 
 recipe_test!(
     recipe_action_definitions,
-    "../../../agent-script-recipes/force-app/main/02_actionConfiguration/actionDefinitions/aiAuthoringBundles/ActionDefinitions/ActionDefinitions.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/actionDefinitions/aiAuthoringBundles/ActionDefinitions/ActionDefinitions.agent", ignore
 );
 
 recipe_test!(
     recipe_action_description_overrides,
-    "../../../agent-script-recipes/force-app/main/02_actionConfiguration/actionDescriptionOverrides/aiAuthoringBundles/ActionDescriptionOverrides/ActionDescriptionOverrides.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/actionDescriptionOverrides/aiAuthoringBundles/ActionDescriptionOverrides/ActionDescriptionOverrides.agent", ignore
 );
 
 recipe_test!(
     recipe_advanced_input_bindings,
-    "../../../agent-script-recipes/force-app/main/02_actionConfiguration/advancedInputBindings/aiAuthoringBundles/AdvancedInputBindings/AdvancedInputBindings.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/advancedInputBindings/aiAuthoringBundles/AdvancedInputBindings/AdvancedInputBindings.agent", ignore
 );
 
 recipe_test!(
     recipe_prompt_template_actions,
-    "../../../agent-script-recipes/force-app/main/02_actionConfiguration/promptTemplateActions/aiAuthoringBundles/PromptTemplateActions/PromptTemplateActions.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/promptTemplateActions/aiAuthoringBundles/PromptTemplateActions/PromptTemplateActions.agent", ignore
 );
 
 // =============================================================================
@@ -98,12 +98,12 @@ recipe_test!(
 
 recipe_test!(
     recipe_before_after_reasoning,
-    "../../../agent-script-recipes/force-app/main/03_reasoningMechanics/beforeAfterReasoning/aiAuthoringBundles/BeforeAfterReasoning/BeforeAfterReasoning.agent"
+    "../agent-script-recipes/force-app/main/03_reasoningMechanics/beforeAfterReasoning/aiAuthoringBundles/BeforeAfterReasoning/BeforeAfterReasoning.agent"
 );
 
 recipe_test!(
     recipe_reasoning_instructions,
-    "../../../agent-script-recipes/force-app/main/03_reasoningMechanics/reasoningInstructions/aiAuthoringBundles/ReasoningInstructions/ReasoningInstructions.agent", ignore
+    "../agent-script-recipes/force-app/main/03_reasoningMechanics/reasoningInstructions/aiAuthoringBundles/ReasoningInstructions/ReasoningInstructions.agent", ignore
 );
 
 // =============================================================================
@@ -112,37 +112,37 @@ recipe_test!(
 
 recipe_test!(
     recipe_advanced_reasoning_patterns,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/advancedReasoningPatterns/aiAuthoringBundles/AdvancedReasoningPatterns/AdvancedReasoningPatterns.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/advancedReasoningPatterns/aiAuthoringBundles/AdvancedReasoningPatterns/AdvancedReasoningPatterns.agent", ignore
 );
 
 recipe_test!(
     recipe_bidirectional_navigation,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/bidirectionalNavigation/aiAuthoringBundles/BidirectionalNavigation/BidirectionalNavigation.agent"
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/bidirectionalNavigation/aiAuthoringBundles/BidirectionalNavigation/BidirectionalNavigation.agent"
 );
 
 recipe_test!(
     recipe_error_handling,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/errorHandling/aiAuthoringBundles/ErrorHandling/ErrorHandling.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/errorHandling/aiAuthoringBundles/ErrorHandling/ErrorHandling.agent", ignore
 );
 
 recipe_test!(
     recipe_external_api_integration,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/externalAPIIntegration/aiAuthoringBundles/ExternalAPIIntegration/ExternalAPIIntegration.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/externalAPIIntegration/aiAuthoringBundles/ExternalAPIIntegration/ExternalAPIIntegration.agent", ignore
 );
 
 recipe_test!(
     recipe_multi_step_workflows,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/multiStepWorkflows/aiAuthoringBundles/MultiStepWorkflows/MultiStepWorkflows.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/multiStepWorkflows/aiAuthoringBundles/MultiStepWorkflows/MultiStepWorkflows.agent", ignore
 );
 
 recipe_test!(
     recipe_multi_topic_navigation,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/multiTopicNavigation/aiAuthoringBundles/MultiTopicNavigation/MultiTopicNavigation.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/multiTopicNavigation/aiAuthoringBundles/MultiTopicNavigation/MultiTopicNavigation.agent", ignore
 );
 
 recipe_test!(
     recipe_simple_qa,
-    "../../../agent-script-recipes/force-app/main/04_architecturalPatterns/simpleQA/aiAuthoringBundles/SimpleQA/SimpleQA.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/simpleQA/aiAuthoringBundles/SimpleQA/SimpleQA.agent", ignore
 );
 
 // =============================================================================
@@ -151,52 +151,52 @@ recipe_test!(
 
 recipe_test!(
     recipe_future_complex_state_management,
-    "../../../agent-script-recipes/force-app/future_recipes/complexStateManagement/aiAuthoringBundles/ComplexStateManagement/ComplexStateManagement.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/complexStateManagement/aiAuthoringBundles/ComplexStateManagement/ComplexStateManagement.agent", ignore
 );
 
 recipe_test!(
     recipe_future_conditional_logic_patterns,
-    "../../../agent-script-recipes/force-app/future_recipes/conditionalLogicPatterns/aiAuthoringBundles/ConditionalLogicPatterns/ConditionalLogicPatterns.agent"
+    "../agent-script-recipes/force-app/future_recipes/conditionalLogicPatterns/aiAuthoringBundles/ConditionalLogicPatterns/ConditionalLogicPatterns.agent"
 );
 
 recipe_test!(
     recipe_future_context_handling,
-    "../../../agent-script-recipes/force-app/future_recipes/contextHandling/aiAuthoringBundles/ContextHandling/ContextHandling.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/contextHandling/aiAuthoringBundles/ContextHandling/ContextHandling.agent", ignore
 );
 
 recipe_test!(
     recipe_future_customer_service_agent,
-    "../../../agent-script-recipes/force-app/future_recipes/customerServiceAgent/aiAuthoringBundles/CustomerServiceAgent/CustomerServiceAgent.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/customerServiceAgent/aiAuthoringBundles/CustomerServiceAgent/CustomerServiceAgent.agent", ignore
 );
 
 recipe_test!(
     recipe_future_dynamic_action_routing,
-    "../../../agent-script-recipes/force-app/future_recipes/dynamicActionRouting/aiAuthoringBundles/DynamicActionRouting/DynamicActionRouting.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/dynamicActionRouting/aiAuthoringBundles/DynamicActionRouting/DynamicActionRouting.agent", ignore
 );
 
 recipe_test!(
     recipe_future_escalation_patterns,
-    "../../../agent-script-recipes/force-app/future_recipes/escalationPatterns/aiAuthoringBundles/EscalationPatterns/EscalationPatterns.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/escalationPatterns/aiAuthoringBundles/EscalationPatterns/EscalationPatterns.agent", ignore
 );
 
 recipe_test!(
     recipe_future_instruction_action_references,
-    "../../../agent-script-recipes/force-app/future_recipes/instructionActionReferences/aiAuthoringBundles/InstructionActionReferences/InstructionActionReferences.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/instructionActionReferences/aiAuthoringBundles/InstructionActionReferences/InstructionActionReferences.agent", ignore
 );
 
 recipe_test!(
     recipe_future_multi_topic_orchestration,
-    "../../../agent-script-recipes/force-app/future_recipes/multiTopicOrchestration/aiAuthoringBundles/MultiTopicOrchestration/MultiTopicOrchestration.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/multiTopicOrchestration/aiAuthoringBundles/MultiTopicOrchestration/MultiTopicOrchestration.agent", ignore
 );
 
 recipe_test!(
     recipe_future_safety_and_guardrails,
-    "../../../agent-script-recipes/force-app/future_recipes/safetyAndGuardrails/aiAuthoringBundles/SafetyAndGuardrails/SafetyAndGuardrails.agent", ignore
+    "../agent-script-recipes/force-app/future_recipes/safetyAndGuardrails/aiAuthoringBundles/SafetyAndGuardrails/SafetyAndGuardrails.agent", ignore
 );
 
 recipe_test!(
     recipe_future_topic_delegation,
-    "../../../agent-script-recipes/force-app/future_recipes/topicDelegation/aiAuthoringBundles/TopicDelegation/TopicDelegation.agent"
+    "../agent-script-recipes/force-app/future_recipes/topicDelegation/aiAuthoringBundles/TopicDelegation/TopicDelegation.agent"
 );
 
 // =============================================================================
@@ -205,7 +205,7 @@ recipe_test!(
 
 #[cfg(test)]
 mod parser_unit_tests {
-    use busbar_sf_agentscript_parser::{lexer, parse_source};
+    use busbar_sf_agentscript::{lexer, parse_source};
     use chumsky::prelude::*;
 
     #[test]

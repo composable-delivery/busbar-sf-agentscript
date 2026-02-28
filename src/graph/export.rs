@@ -3,8 +3,8 @@
 //! This module contains all the data structures used to serialize RefGraph
 //! data for external consumption (JSON, WASM, etc.).
 
-use crate::error::ValidationError;
-use crate::{RefGraph, RefNode, ValidationResult};
+use super::error::ValidationError;
+use super::{RefGraph, RefNode, ValidationResult};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 

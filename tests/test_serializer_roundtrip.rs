@@ -5,7 +5,7 @@
 //! 2. We can serialize AST back to AgentScript source
 //! 3. Re-parsing the serialized source produces equivalent AST
 
-use busbar_sf_agentscript_parser::{parse, serialize};
+use busbar_sf_agentscript::{parse, serialize};
 
 #[test]
 fn test_roundtrip_minimal_config() {

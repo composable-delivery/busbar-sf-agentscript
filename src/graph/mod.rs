@@ -1,8 +1,8 @@
-//! # sf-agentscript-graph
+//! # graph
 //!
 //! Graph-based analysis and validation for AgentScript ASTs.
 //!
-//! This crate provides tools to build a reference graph from a parsed AgentScript AST,
+//! This module provides tools to build a reference graph from a parsed AgentScript AST,
 //! enabling validation, analysis, and querying of relationships between definitions.
 //!
 //! ## Features
@@ -16,8 +16,8 @@
 //! ## Example
 //!
 //! ```ignore
-//! use busbar_sf_agentscript_parser::parse;
-//! use busbar_sf_agentscript_graph::RefGraph;
+//! use busbar_sf_agentscript::parse;
+//! use busbar_sf_agentscript::graph::RefGraph;
 //!
 //! let source = r#"
 //! config:
@@ -98,9 +98,7 @@ impl RefGraph {
     ///
     /// This traverses the AST and builds nodes for all definitions,
     /// then creates edges for all references between them.
-    pub fn from_ast(
-        ast: &busbar_sf_agentscript_parser::AgentFile,
-    ) -> Result<Self, GraphBuildError> {
+    pub fn from_ast(ast: &crate::AgentFile) -> Result<Self, GraphBuildError> {
         RefGraphBuilder::new().build(ast)
     }
 
@@ -187,7 +185,7 @@ topic help:
    reasoning:
       instructions: "Provide help"
 "#;
-        let ast = busbar_sf_agentscript_parser::parse(source).unwrap();
+        let ast = crate::parse(source).unwrap();
         let graph = RefGraph::from_ast(&ast).unwrap();
 
         assert!(graph.node_count() > 0);

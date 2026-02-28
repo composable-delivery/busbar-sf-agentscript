@@ -15,7 +15,7 @@
 //! Use [`ErrorReporter`] for user-friendly error output:
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::error::{ErrorReporter, ParseErrorInfo};
+//! use busbar_sf_agentscript::error::{ErrorReporter, ParseErrorInfo};
 //!
 //! let source = "config:\n   agent_name: bad";
 //! let reporter = ErrorReporter::new("example.agent", source);

@@ -104,18 +104,13 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 name = "busbar-sf-agentscript"
 version = "0.1.0"
 dependencies = [
- "busbar-sf-agentscript-graph",
- "busbar-sf-agentscript-parser",
- "pretty_assertions",
-]
-
-[[package]]
-name = "busbar-sf-agentscript-graph"
-version = "0.1.0"
-dependencies = [
+ "ariadne",
  "ascii-dag",
- "busbar-sf-agentscript-parser",
+ "chumsky",
  "console_error_panic_hook",
+ "criterion",
+ "glob",
+ "indexmap",
  "petgraph",
  "pretty_assertions",
  "serde",
@@ -130,8 +125,7 @@ name = "busbar-sf-agentscript-lsp"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "busbar-sf-agentscript-graph",
- "busbar-sf-agentscript-parser",
+ "busbar-sf-agentscript",
  "env_logger",
  "lazy_static",
  "log",
@@ -139,24 +133,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower-lsp",
-]
-
-[[package]]
-name = "busbar-sf-agentscript-parser"
-version = "0.1.0"
-dependencies = [
- "ariadne",
- "chumsky",
- "console_error_panic_hook",
- "criterion",
- "glob",
- "indexmap",
- "pretty_assertions",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "thiserror",
- "wasm-bindgen",
 ]
 
 [[package]]

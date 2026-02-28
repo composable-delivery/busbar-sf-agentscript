@@ -9,8 +9,8 @@
 //!
 //! This enables offline analysis of agent dependencies without round-tripping to the org.
 
-use busbar_sf_agentscript_parser::ast::{ActionDef, ConnectionBlock, KnowledgeBlock};
-use busbar_sf_agentscript_parser::AgentFile;
+use crate::ast::{ActionDef, ConnectionBlock, KnowledgeBlock};
+use crate::AgentFile;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -388,8 +388,8 @@ mod tests {
     #[ignore = "Recipe file uses {} empty object literal which is not valid AgentScript"]
     fn test_full_dependency_extraction() {
         // Load and parse a real recipe from the submodule
-        let source = include_str!("../../../agent-script-recipes/force-app/future_recipes/customerServiceAgent/aiAuthoringBundles/CustomerServiceAgent/CustomerServiceAgent.agent");
-        let ast = busbar_sf_agentscript_parser::parse(source).unwrap();
+        let source = include_str!("../../agent-script-recipes/force-app/future_recipes/customerServiceAgent/aiAuthoringBundles/CustomerServiceAgent/CustomerServiceAgent.agent");
+        let ast = crate::parse(source).unwrap();
         let report = extract_dependencies(&ast);
 
         // Check flows (multiple flow targets in this recipe)

@@ -1,6 +1,6 @@
 //! Error types for graph building and validation.
 
-use crate::nodes::Span;
+use super::nodes::Span;
 use thiserror::Error;
 
 /// Errors that can occur when building a reference graph from an AST.

@@ -27,7 +27,7 @@
 //! All nodes use [`Spanned<T>`] to preserve source locations:
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::Spanned;
+//! use busbar_sf_agentscript::Spanned;
 //!
 //! // A spanned string with byte offsets 10..20
 //! let name = Spanned::new("MyAgent".to_string(), 10..20);
@@ -40,7 +40,7 @@
 //! All types implement `Serialize` and `Deserialize` for JSON interop:
 //!
 //! ```rust
-//! # use busbar_sf_agentscript_parser::parse;
+//! # use busbar_sf_agentscript::parse;
 //! let source = "config:\n   agent_name: \"Test\"\n";
 //! let agent = parse(source).unwrap();
 //! let json = serde_json::to_string(&agent).unwrap();
@@ -58,7 +58,7 @@ use std::ops::Range;
 /// # Example
 ///
 /// ```rust
-/// use busbar_sf_agentscript_parser::ast::Span;
+/// use busbar_sf_agentscript::ast::Span;
 ///
 /// let span: Span = 0..10; // Bytes 0 through 9
 /// assert_eq!(span.start, 0);
@@ -77,7 +77,7 @@ pub type Span = Range<usize>;
 /// # Example
 ///
 /// ```rust
-/// use busbar_sf_agentscript_parser::Spanned;
+/// use busbar_sf_agentscript::Spanned;
 ///
 /// let spanned = Spanned::new("hello".to_string(), 5..10);
 /// assert_eq!(spanned.node, "hello");
@@ -102,7 +102,7 @@ impl<T> Spanned<T> {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::Spanned;
+    /// use busbar_sf_agentscript::Spanned;
     ///
     /// let s = Spanned::new(42, 0..2);
     /// assert_eq!(s.node, 42);
@@ -116,7 +116,7 @@ impl<T> Spanned<T> {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::Spanned;
+    /// use busbar_sf_agentscript::Spanned;
     ///
     /// let s = Spanned::new(5, 0..1);
     /// let doubled = s.map(|n| n * 2);
@@ -152,7 +152,7 @@ impl<T> Spanned<T> {
 /// # Example
 ///
 /// ```rust
-/// use busbar_sf_agentscript_parser::parse;
+/// use busbar_sf_agentscript::parse;
 ///
 /// let source = r#"
 /// config:
@@ -221,7 +221,7 @@ impl AgentFile {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::AgentFile;
+    /// use busbar_sf_agentscript::AgentFile;
     ///
     /// let agent = AgentFile::new();
     /// assert!(agent.config.is_none());
@@ -390,7 +390,7 @@ impl Type {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::Type;
+    /// use busbar_sf_agentscript::Type;
     ///
     /// assert_eq!(Type::parse_type("string"), Some(Type::String));
     /// assert_eq!(Type::parse_type("number"), Some(Type::Number));
@@ -884,7 +884,7 @@ pub enum Expr {
 /// # Example
 ///
 /// ```rust
-/// use busbar_sf_agentscript_parser::Reference;
+/// use busbar_sf_agentscript::Reference;
 ///
 /// let ref1 = Reference::new("variables", vec!["customer_id".to_string()]);
 /// assert_eq!(ref1.full_path(), "@variables.customer_id");
@@ -909,7 +909,7 @@ impl Reference {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::Reference;
+    /// use busbar_sf_agentscript::Reference;
     ///
     /// let r = Reference::new("variables", vec!["name".to_string()]);
     /// assert_eq!(r.namespace, "variables");
@@ -926,7 +926,7 @@ impl Reference {
     /// # Example
     ///
     /// ```rust
-    /// use busbar_sf_agentscript_parser::Reference;
+    /// use busbar_sf_agentscript::Reference;
     ///
     /// let r = Reference::new("actions", vec!["send_email".to_string()]);
     /// assert_eq!(r.full_path(), "@actions.send_email");

@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```rust
-//! use busbar_sf_agentscript_parser::{parse, serialize};
+//! use busbar_sf_agentscript::{parse, serialize};
 //!
 //! let source = r#"
 //! config:
@@ -40,7 +40,7 @@ use std::fmt::Write;
 /// # Example
 ///
 /// ```rust
-/// use busbar_sf_agentscript_parser::{parse, serialize};
+/// use busbar_sf_agentscript::{parse, serialize};
 ///
 /// let ast = parse("config:\n   agent_name: \"Test\"\n").unwrap();
 /// let source = serialize(&ast);
