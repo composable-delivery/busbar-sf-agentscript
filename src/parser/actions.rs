@@ -31,14 +31,28 @@ pub(crate) fn param_def<'tokens, 'src: 'tokens>() -> impl Parser<
     Spanned<ParamDef>,
     extra::Err<Rich<'tokens, Token<'src>, Span>>,
 > + Clone {
-    // Parameter name can be identifier, quoted string, or certain keywords used as param names
+    // Parameter name can be identifier, quoted string, or keywords used as param names
     let param_name = choice((
-        spanned_ident(),
+        select! {
+            Token::Ident(s) => s.to_string(),
+            Token::Description => "description".to_string(),
+            Token::Available => "available".to_string(),
+            Token::String => "string".to_string(),
+            Token::Number => "number".to_string(),
+            Token::Boolean => "boolean".to_string(),
+            Token::Object => "object".to_string(),
+            Token::Date => "date".to_string(),
+            Token::Timestamp => "timestamp".to_string(),
+            Token::Currency => "currency".to_string(),
+            Token::Id => "id".to_string(),
+            Token::Datetime => "datetime".to_string(),
+            Token::Time => "time".to_string(),
+            Token::Integer => "integer".to_string(),
+            Token::Long => "long".to_string(),
+            Token::List => "list".to_string(),
+        }
+        .map_with(|s, e| Spanned::new(s, to_ast_span(e.span()))),
         spanned_string(),
-        just(Token::Description)
-            .map_with(|_, e| Spanned::new("description".to_string(), to_ast_span(e.span()))),
-        just(Token::Available)
-            .map_with(|_, e| Spanned::new("available".to_string(), to_ast_span(e.span()))),
     ));
 
     let param_entry = choice((
