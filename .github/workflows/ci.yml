@@ -144,6 +144,37 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
+  sf-plugin-build:
+    name: SF Plugin Build
+    runs-on: ubuntu-latest
+    needs: [rust-fmt, rust-clippy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build WASM parser package
+        run: |
+          wasm-pack build crates/parser --target web --features wasm \
+            --out-name agentscript_parser \
+            --out-dir ../../pkg
+      - name: Build WASM graph package
+        run: |
+          wasm-pack build crates/graph --target web --features wasm \
+            --out-name agentscript_graph \
+            --out-dir ../../pkg-graph
+      - name: Install plugin dependencies
+        working-directory: plugin-agency/
+        run: npm install
+      - name: Build SF plugin
+        working-directory: plugin-agency/
+        run: npm run build
+
   vscode-build:
     name: VS Code Extension Build
     runs-on: ubuntu-latest
@@ -209,6 +240,7 @@ jobs:
       - rust-deny
       - rust-audit
       - rust-coverage
+      - sf-plugin-build
       - vscode-build
       - zed-build
       - tree-sitter-check
