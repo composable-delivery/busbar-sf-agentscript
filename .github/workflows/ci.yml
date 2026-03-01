@@ -173,7 +173,7 @@ jobs:
             const fs = require('fs');
             fs.writeFileSync('pkg/package.json', JSON.stringify({
               name: 'busbar-sf-agentscript',
-              version: '0.1.0',
+              version: '0.0.1',
               files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
               main: 'busbar_sf_agentscript.js',
               types: 'busbar_sf_agentscript.d.ts',

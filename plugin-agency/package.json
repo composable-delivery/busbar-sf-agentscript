@@ -1,6 +1,6 @@
 {
   "name": "sf-plugin-busbar-agency",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Salesforce CLI plugin for AgentScript parsing and validation using WASM",
   "author": "Composable Delivery",
   "bugs": "https://github.com/composable-delivery/busbar-sf-agentscript/issues",

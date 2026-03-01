@@ -25,7 +25,7 @@ Display the version of the AgentScript parser.
 
 ```bash
 $ sf agency version
-AgentScript Parser Version: 0.1.0
+AgentScript Parser Version: 0.0.1
 ```
 
 **Use Case**: Verify which parser version you're using, helpful for debugging or reporting issues.
