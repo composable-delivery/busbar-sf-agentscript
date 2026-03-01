@@ -16,7 +16,7 @@ Choose the option that fits your workflow:
 
 | | Best for | What you get |
 |---|---|---|
-| [SF CLI Plugin](#sf-cli-plugin) | Salesforce developers | `sf agentscript` commands for validation, graph export, and CI integration |
+| [SF CLI Plugin](#sf-cli-plugin) | Salesforce developers | `sf agency` commands for validation, graph export, and CI integration |
 | [VS Code Extension](#vs-code-extension) | VS Code users | Syntax highlighting, real-time diagnostics, and topic graph visualization |
 | [LSP Server](#lsp-server) | Neovim, Helix, and other editors | Full language server for any LSP-capable editor |
 | [Rust Crates](#rust-crates) | Rust developers | Parser, graph analysis library, and WASM support |
@@ -28,25 +28,25 @@ Choose the option that fits your workflow:
 Install with the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli):
 
 ```sh
-sf plugins install @composable-delivery/sf-agentscript
+sf plugins install sf-plugin-busbar-agency
 ```
 
 Validate an AgentScript file:
 
 ```sh
-sf agentscript validate --file my-agent.agent
+sf agency validate --file my-agent.agent
 ```
 
 Export the topic reference graph:
 
 ```sh
-sf agentscript graph --file my-agent.agent --format graphml --output graph.xml
+sf agency graph --file my-agent.agent --format graphml --output graph.xml
 ```
 
-Check for unreachable topics and dead code:
+Extract action interface definitions:
 
 ```sh
-sf agentscript analyze --file my-agent.agent
+sf agency actions --file my-agent.agent
 ```
 
 The plugin exits non-zero on errors, making it suitable for CI pipelines.
@@ -163,14 +163,14 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-# Parser + graph analysis (default)
+# Parser only (default)
 busbar-sf-agentscript = "0.1"
 
-# Parser only
-busbar-sf-agentscript = { version = "0.1", default-features = false, features = ["parser"] }
-
 # Parser + graph analysis
-busbar-sf-agentscript = { version = "0.1", default-features = false, features = ["graph"] }
+busbar-sf-agentscript = { version = "0.1", features = ["graph"] }
+
+# Parser + WASM bindings
+busbar-sf-agentscript = { version = "0.1", features = ["wasm"] }
 ```
 
 ### Parser
@@ -203,8 +203,8 @@ The umbrella crate re-exports everything, but you can depend on individual crate
 
 | Crate | docs.rs | Description |
 |---|---|---|
-| `busbar-sf-agentscript-parser` | [![docs](https://docs.rs/busbar-sf-agentscript-parser/badge.svg)](https://docs.rs/busbar-sf-agentscript-parser) | Lexer, parser, AST, serializer, semantic validator |
-| `busbar-sf-agentscript-graph` | [![docs](https://docs.rs/busbar-sf-agentscript-graph/badge.svg)](https://docs.rs/busbar-sf-agentscript-graph) | Reference resolution, cycle detection, reachability, GraphML export |
+| `busbar-sf-agentscript` | [![docs](https://docs.rs/busbar-sf-agentscript/badge.svg)](https://docs.rs/busbar-sf-agentscript) | Lexer, parser, AST, serializer, semantic validator, and graph analysis |
+| `busbar-sf-agentscript-lsp` | [![docs](https://docs.rs/busbar-sf-agentscript-lsp/badge.svg)](https://docs.rs/busbar-sf-agentscript-lsp) | LSP server binary |
 
 ---
 
@@ -239,12 +239,12 @@ See [`agent-script-recipes`](https://github.com/trailheadapps/agent-script-recip
 ## Workspace
 
 ```
+src/                                        — parser, graph analysis, WASM bindings
 crates/
-  parser/   busbar-sf-agentscript-parser    — lexer, AST, serializer, validator
-  graph/    busbar-sf-agentscript-graph     — reference graph and analysis
-  lsp/      busbar-sf-agentscript-lsp       — LSP server binary (experimental)
+  lsp/      busbar-sf-agentscript-lsp       — LSP server binary
 
 packages/                                   — VS Code extension
+plugin-agency/                              — SF CLI plugin (sf agency *)
 tree-sitter-agentscript/                    — Tree-sitter grammar
 zed-extension/                              — Zed editor extension
 agent-script-recipes/                       — test fixtures (git submodule)

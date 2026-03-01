@@ -2,7 +2,7 @@
   "name": "busbar-vscode-agentscript",
   "displayName": "AgentScript",
   "description": "AgentScript language support for Salesforce Agentforce",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "publisher": "composable-delivery",
   "engines": {
     "vscode": "^1.85.0"

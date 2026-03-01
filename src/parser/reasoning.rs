@@ -76,6 +76,7 @@ pub(crate) fn with_clause<'tokens, 'src: 'tokens>() -> impl Parser<
         ident().map(|s| s.to_string()),
         string_lit().map(|s| s.to_string()),
         just(Token::Description).to("description".to_string()),
+        just(Token::Id).to("id".to_string()),
     ));
 
     just(Token::With)

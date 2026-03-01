@@ -1,0 +1,68 @@
+{
+  "name": "sf-plugin-busbar-agency",
+  "version": "0.0.1",
+  "description": "Salesforce CLI plugin for AgentScript parsing and validation using WASM",
+  "author": "Composable Delivery",
+  "bugs": "https://github.com/composable-delivery/busbar-sf-agentscript/issues",
+  "homepage": "https://github.com/composable-delivery/busbar-sf-agentscript",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": "composable-delivery/busbar-sf-agentscript",
+  "files": [
+    "/lib",
+    "/messages",
+    "/oclif.manifest.json"
+  ],
+  "keywords": [
+    "salesforce",
+    "sf",
+    "sfdx",
+    "agentscript",
+    "parser",
+    "wasm",
+    "oclif"
+  ],
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "clean": "rm -rf lib && rm -f tsconfig.tsbuildinfo",
+    "prepack": "npm run build",
+    "test": "mocha --loader=ts-node/esm --extensions ts --recursive \"test/**/*.test.ts\"",
+    "test:integration": "node test-wasm.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "oclif": {
+    "bin": "sf",
+    "commands": "./lib/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "agency": {
+        "description": "AgentScript - Commands for parsing and analyzing AgentScript files"
+      },
+      "agency validate": {
+        "description": "Validate AgentScript files locally and against the Salesforce platform"
+      }
+    }
+  },
+  "dependencies": {
+    "@oclif/core": "^3.27.0",
+    "@salesforce/core": "^7.5.0",
+    "@salesforce/sf-plugins-core": "^11.3.12",
+    "ansis": "^3.17.0",
+    "busbar-sf-agentscript": "file:../pkg",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@oclif/test": "^4.1.15",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.0.3",
+    "chai": "^6.2.1",
+    "esbuild": "^0.24.0",
+    "mocha": "^11.7.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

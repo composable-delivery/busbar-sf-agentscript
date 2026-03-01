@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v0.1.0)"
+        description: "Tag to release (e.g. v0.0.1)"
         required: false
 
 concurrency:
@@ -51,20 +51,14 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Publish parser
-        run: cargo publish -p busbar-sf-agentscript-parser
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: Wait for index propagation
-        run: sleep 20
-      - name: Publish graph
-        run: cargo publish -p busbar-sf-agentscript-graph
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: Wait for index propagation
-        run: sleep 20
-      - name: Publish umbrella crate
+      - name: Publish busbar-sf-agentscript
         run: cargo publish -p busbar-sf-agentscript
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Wait for index propagation
+        run: sleep 20
+      - name: Publish busbar-sf-agentscript-lsp
+        run: cargo publish -p busbar-sf-agentscript-lsp
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -136,30 +130,35 @@ jobs:
           path: busbar-sf-agentscript-lsp-${{ matrix.target }}.exe
           if-no-files-found: error
 
-  build-wasm-parser:
-    name: Build WASM / parser
+  build-zed-extension:
+    name: Build Zed extension
     runs-on: ubuntu-latest
     needs: [validate]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@wasm-pack
-      - name: Build WASM parser
+        with:
+          key: zed-wasm32-wasip2
+          workspaces: zed-extension
+      - name: Build Zed extension
+        run: cargo build --release --manifest-path zed-extension/Cargo.toml --target wasm32-wasip2
+      - name: Copy extension.wasm
         run: |
-          wasm-pack build crates/parser --target web --features wasm \
-            --out-name agentscript_parser \
-            --out-dir ../../dist/wasm-parser
+          cp zed-extension/target/wasm32-wasip2/release/busbar_sf_agentscript_zed.wasm \
+             zed-extension/extension.wasm
       - uses: actions/upload-artifact@v4
         with:
-          name: wasm-parser
-          path: dist/wasm-parser/
+          name: zed-extension
+          path: |
+            zed-extension/extension.wasm
+            zed-extension/extension.toml
           if-no-files-found: error
 
-  build-wasm-graph:
-    name: Build WASM / graph
+  build-wasm:
+    name: Build WASM
     runs-on: ubuntu-latest
     needs: [validate]
     steps:
@@ -167,17 +166,34 @@ jobs:
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@wasm-pack
-      - name: Build WASM graph
+      - name: Install wasm-bindgen-cli
         run: |
-          wasm-pack build crates/graph --target web --features wasm \
-            --out-name agentscript_graph \
-            --out-dir ../../dist/wasm-graph
+          VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "wasm-bindgen") | .version')
+          cargo install wasm-bindgen-cli --version "$VERSION" --locked
+      - name: Build WASM package
+        run: |
+          cargo build --lib --release --target wasm32-unknown-unknown --features wasm,graph
+          mkdir -p dist/wasm
+          wasm-bindgen --target web --out-dir dist/wasm \
+            target/wasm32-unknown-unknown/release/busbar_sf_agentscript.wasm
+          node -e "
+            const fs = require('fs');
+            fs.writeFileSync('dist/wasm/package.json', JSON.stringify({
+              name: 'busbar-sf-agentscript',
+              version: '${{ needs.validate.outputs.version }}',
+              files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
+              main: 'busbar_sf_agentscript.js',
+              types: 'busbar_sf_agentscript.d.ts',
+              sideEffects: false
+            }, null, 2));
+          "
       - uses: actions/upload-artifact@v4
         with:
-          name: wasm-graph
-          path: dist/wasm-graph/
+          name: wasm
+          path: dist/wasm/
           if-no-files-found: error
 
   package-vscode:
@@ -241,7 +257,7 @@ jobs:
           if-no-files-found: error
       - name: Publish to VS Code Marketplace
         working-directory: packages/
-        run: npx vsce publish --target ${{ matrix.vsce_target }} --pat ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --target ${{ matrix.vsce_target }} --pat ${{ secrets.VS_CODE_MARKETPLACE_TOKEN }}
 
   publish-vscode-marketplace:
     name: VS Code Marketplace publish complete
@@ -277,8 +293,8 @@ jobs:
     needs:
       - validate
       - build-lsp
-      - build-wasm-parser
-      - build-wasm-graph
+      - build-wasm
+      - build-zed-extension
       - package-vscode
       - publish-tree-sitter-npm
     steps:
@@ -293,9 +309,11 @@ jobs:
           find release-artifacts/ -type f \
             \( -name "*.vsix" -o -name "busbar-sf-agentscript-lsp-*" \) \
             -exec cp {} release-upload/ \;
-          # WASM artifacts as zip bundles
-          cd release-artifacts/wasm-parser && zip -r ../../release-upload/wasm-parser.zip . && cd ../..
-          cd release-artifacts/wasm-graph  && zip -r ../../release-upload/wasm-graph.zip  . && cd ../..
+          # WASM artifact as zip bundle
+          cd release-artifacts/wasm && zip -r ../../release-upload/wasm.zip . && cd ../..
+          # Zed extension artifact
+          cd release-artifacts/zed-extension && zip -r ../../release-upload/zed-extension.zip . && cd ../..
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
