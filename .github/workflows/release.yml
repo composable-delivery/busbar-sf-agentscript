@@ -257,7 +257,7 @@ jobs:
           if-no-files-found: error
       - name: Publish to VS Code Marketplace
         working-directory: packages/
-        run: npx vsce publish --target ${{ matrix.vsce_target }} --pat ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --target ${{ matrix.vsce_target }} --pat ${{ secrets.VS_CODE_MARKETPLACE_TOKEN }}
 
   publish-vscode-marketplace:
     name: VS Code Marketplace publish complete
