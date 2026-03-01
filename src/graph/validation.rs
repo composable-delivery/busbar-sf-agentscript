@@ -549,9 +549,9 @@ topic topic_c:
             .collect();
         // At least one of the three topics should appear in the reported cycle path
         assert!(
-            cycle_names.iter().any(|n| {
-                n == "topic_a" || n == "topic_b" || n == "topic_c"
-            }),
+            cycle_names
+                .iter()
+                .any(|n| { n == "topic_a" || n == "topic_b" || n == "topic_c" }),
             "Cycle should involve topic_a/b/c, got: {:?}",
             cycle_names
         );
