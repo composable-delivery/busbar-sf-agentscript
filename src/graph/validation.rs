@@ -493,4 +493,107 @@ topic main:
             unused_action_warns
         );
     }
+
+    #[test]
+    fn test_three_node_cycle_detected() {
+        // topic_a → topic_b → topic_c → topic_a forms a three-node cycle.
+        // The graph contains a cycle involving all three topics and
+        // find_cycles() should surface it.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+      actions:
+         go_c: @utils.transition to @topic.topic_c
+            description: "Go to C"
+
+topic topic_c:
+   description: "Topic C"
+   reasoning:
+      instructions: "In C"
+      actions:
+         back_to_a: @utils.transition to @topic.topic_a
+            description: "Back to A"
+"#;
+        let graph = parse_and_build(source);
+        let cycles = graph.find_cycles();
+        assert!(!cycles.is_empty(), "Expected a cycle among topic_a, topic_b, topic_c");
+        let cycle_names: Vec<_> = cycles
+            .iter()
+            .flat_map(|e| {
+                if let ValidationError::CycleDetected { path } = e {
+                    path.clone()
+                } else {
+                    vec![]
+                }
+            })
+            .collect();
+        // At least one of the three topics should appear in the reported cycle path
+        assert!(
+            cycle_names.iter().any(|n| {
+                n == "topic_a" || n == "topic_b" || n == "topic_c"
+            }),
+            "Cycle should involve topic_a/b/c, got: {:?}",
+            cycle_names
+        );
+    }
+
+    #[test]
+    fn test_unresolved_variable_reference_detected() {
+        // A reasoning action binds @variables.nonexistent_var which is never declared
+        // in the variables block.  The unresolved reference should surface as an error.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   real_var: mutable string = ""
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_thing: @actions.do_thing
+            description: "Do a thing"
+            with id=@variables.nonexistent_var
+"#;
+        let graph = parse_and_build(source);
+        let result = graph.validate();
+        let unresolved: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|e| matches!(e, ValidationError::UnresolvedReference { .. }))
+            .collect();
+        assert!(
+            !unresolved.is_empty(),
+            "Expected an unresolved reference error for @variables.nonexistent_var"
+        );
+    }
 }
