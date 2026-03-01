@@ -77,12 +77,9 @@ impl RefGraph {
             if scc.len() > 1 {
                 let path: Vec<String> = scc
                     .iter()
-                    .filter_map(|&idx| {
-                        if let Some(RefNode::Topic { name, .. }) = self.graph.node_weight(idx) {
-                            Some(name.clone())
-                        } else {
-                            None
-                        }
+                    .filter_map(|&idx| match self.graph.node_weight(idx) {
+                        Some(RefNode::Topic { name, .. }) => Some(name.clone()),
+                        _ => None,
                     })
                     .collect();
 
@@ -109,18 +106,16 @@ impl RefGraph {
         self.topics
             .iter()
             .filter_map(|(name, &idx)| {
-                if !reachable.contains(&idx) {
-                    if let Some(RefNode::Topic { span, .. }) = self.graph.node_weight(idx) {
-                        Some(ValidationError::UnreachableTopic {
-                            name: name.clone(),
-                            span: *span,
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                if reachable.contains(&idx) {
+                    return None;
                 }
+                let Some(RefNode::Topic { span, .. }) = self.graph.node_weight(idx) else {
+                    return None;
+                };
+                Some(ValidationError::UnreachableTopic {
+                    name: name.clone(),
+                    span: *span,
+                })
             })
             .collect()
     }
@@ -135,20 +130,17 @@ impl RefGraph {
                     .graph
                     .edges_directed(idx, Direction::Incoming)
                     .any(|e| matches!(e.weight(), RefEdge::Invokes));
-
-                if !has_incoming {
-                    if let Some(RefNode::ActionDef { span, .. }) = self.graph.node_weight(idx) {
-                        Some(ValidationError::UnusedActionDef {
-                            name: name.clone(),
-                            topic: topic.clone(),
-                            span: *span,
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                if has_incoming {
+                    return None;
                 }
+                let Some(RefNode::ActionDef { span, .. }) = self.graph.node_weight(idx) else {
+                    return None;
+                };
+                Some(ValidationError::UnusedActionDef {
+                    name: name.clone(),
+                    topic: topic.clone(),
+                    span: *span,
+                })
             })
             .collect()
     }
@@ -163,19 +155,16 @@ impl RefGraph {
                     .graph
                     .edges_directed(idx, Direction::Incoming)
                     .any(|e| matches!(e.weight(), RefEdge::Reads));
-
-                if !has_readers {
-                    if let Some(RefNode::Variable { span, .. }) = self.graph.node_weight(idx) {
-                        Some(ValidationError::UnusedVariable {
-                            name: name.clone(),
-                            span: *span,
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                if has_readers {
+                    return None;
                 }
+                let Some(RefNode::Variable { span, .. }) = self.graph.node_weight(idx) else {
+                    return None;
+                };
+                Some(ValidationError::UnusedVariable {
+                    name: name.clone(),
+                    span: *span,
+                })
             })
             .collect()
     }
