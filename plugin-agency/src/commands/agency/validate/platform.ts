@@ -7,7 +7,7 @@ import ansis from "ansis";
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from "busbar-sf-agentscript";
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as graph from "busbar-sf-agentscript-graph";
+import * as graph from "busbar-sf-agentscript";
 
 // After bundling, __dirname is lib/commands/agency/validate/ - go up 4 levels to plugin root
 const pluginRoot = path.resolve(__dirname, "..", "..", "..", "..");

@@ -52,7 +52,6 @@
     "@salesforce/sf-plugins-core": "^11.3.12",
     "ansis": "^3.17.0",
     "busbar-sf-agentscript": "file:../pkg",
-    "busbar-sf-agentscript-graph": "file:../pkg-graph",
     "zod": "^4.3.5"
   },
   "devDependencies": {

@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as graph from 'busbar-sf-agentscript-graph';
+import * as graph from 'busbar-sf-agentscript';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from 'busbar-sf-agentscript';
 

@@ -20,7 +20,6 @@ function copyMessages() {
 function copyWasmFiles() {
   const wasmSources = [
     { pkg: 'busbar-sf-agentscript' },
-    { pkg: 'busbar-sf-agentscript-graph' },
   ];
 
   const libDir = join(__dirname, 'lib');

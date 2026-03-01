@@ -1,4 +1,4 @@
-# @salesforce/plugin-agentscript
+# sf-plugin-busbar-agency
 
 Salesforce CLI plugin for parsing and validating AgentScript files using WebAssembly.
 
@@ -20,7 +20,7 @@ This plugin provides commands to work with Salesforce AgentScript files. It uses
 ### Install as SF CLI Plugin
 
 ```bash
-sf plugins install @salesforce/plugin-agentscript
+sf plugins install sf-plugin-busbar-agency
 ```
 
 ### Development Installation
@@ -35,14 +35,14 @@ sf plugins link .
 
 ## Commands
 
-### `sf agentscript-parser parse`
+### `sf agency parse`
 
 Parse an AgentScript file and output its Abstract Syntax Tree (AST).
 
 **Usage:**
 
 ```bash
-sf agentscript-parser parse --file <path-to-agent-file>
+sf agency parse --file <path-to-agent-file>
 ```
 
 **Flags:**
@@ -54,20 +54,20 @@ sf agentscript-parser parse --file <path-to-agent-file>
 
 ```bash
 # Parse and display pretty output
-sf agentscript-parser parse --file path/to/MyAgent.agent
+sf agency parse --file path/to/MyAgent.agent
 
 # Parse and output JSON
-sf agentscript-parser parse --file path/to/MyAgent.agent --format json
+sf agency parse --file path/to/MyAgent.agent --format json
 ```
 
-### `sf agentscript-parser validate`
+### `sf agency validate`
 
 Validate an AgentScript file for syntax errors.
 
 **Usage:**
 
 ```bash
-sf agentscript-parser validate --file <path-to-agent-file>
+sf agency validate --file <path-to-agent-file>
 ```
 
 **Flags:**
@@ -77,33 +77,37 @@ sf agentscript-parser validate --file <path-to-agent-file>
 **Examples:**
 
 ```bash
-sf agentscript-parser validate --file path/to/MyAgent.agent
+sf agency validate --file path/to/MyAgent.agent
 ```
 
-### `sf agentscript-parser version`
+### `sf agency validate platform`
+
+Validate an AgentScript file against the Salesforce platform.
+
+**Usage:**
+
+```bash
+sf agency validate platform --file <path-to-agent-file>
+```
+
+### `sf agency version`
 
 Display the version of the AgentScript parser.
 
 **Usage:**
 
 ```bash
-sf agentscript-parser version
+sf agency version
 ```
 
-**Examples:**
-
-```bash
-sf agentscript-parser version
-```
-
-### `sf agentscript-parser list`
+### `sf agency list`
 
 List specific elements from an AgentScript file.
 
 **Usage:**
 
 ```bash
-sf agentscript-parser list --file <path-to-agent-file> --type <element-type>
+sf agency list --file <path-to-agent-file> --type <element-type>
 ```
 
 **Flags:**
@@ -116,23 +120,23 @@ sf agentscript-parser list --file <path-to-agent-file> --type <element-type>
 
 ```bash
 # List all topics
-sf agentscript-parser list --file path/to/MyAgent.agent --type topics
+sf agency list --file path/to/MyAgent.agent --type topics
 
 # List all variables
-sf agentscript-parser list --file path/to/MyAgent.agent --type variables
+sf agency list --file path/to/MyAgent.agent --type variables
 
 # List actions in JSON format
-sf agentscript-parser list --file path/to/MyAgent.agent --type actions --format json
+sf agency list --file path/to/MyAgent.agent --type actions --format json
 ```
 
-### `sf agentscript-parser query`
+### `sf agency query`
 
 Query and extract specific parts of the AST using dot-notation paths.
 
 **Usage:**
 
 ```bash
-sf agentscript-parser query --file <path-to-agent-file> --path <ast-path>
+sf agency query --file <path-to-agent-file> --path <ast-path>
 ```
 
 **Flags:**
@@ -145,13 +149,53 @@ sf agentscript-parser query --file <path-to-agent-file> --path <ast-path>
 
 ```bash
 # Query the agent name
-sf agentscript-parser query --file path/to/MyAgent.agent --path config.agent_name
+sf agency query --file path/to/MyAgent.agent --path config.agent_name
 
 # Query all topics
-sf agentscript-parser query --file path/to/MyAgent.agent --path topics
+sf agency query --file path/to/MyAgent.agent --path topics
+```
 
-# Query system messages
-sf agentscript-parser query --file path/to/MyAgent.agent --path system.messages --format json
+### `sf agency actions`
+
+Extract action interface definitions from an AgentScript file.
+
+**Usage:**
+
+```bash
+sf agency actions --file <path-to-agent-file>
+```
+
+**Flags:**
+
+- `-f, --file <path>` (required) - Path to the AgentScript file
+- `--format <format>` - Output format: `table` (default), `json`, `typescript`, or `markdown`
+- `--target <type>` - Filter by target type: `all`, `flow`, `apex`, or `prompt`
+
+**Examples:**
+
+```bash
+sf agency actions --file path/to/MyAgent.agent
+sf agency actions --file path/to/MyAgent.agent --format typescript
+```
+
+### `sf agency graph`
+
+Export the topic reference graph.
+
+**Usage:**
+
+```bash
+sf agency graph --file <path-to-agent-file>
+```
+
+### `sf agency deps`
+
+Extract Salesforce org dependencies from an AgentScript file.
+
+**Usage:**
+
+```bash
+sf agency deps --file <path-to-agent-file>
 ```
 
 ## AgentScript Language
@@ -221,16 +265,23 @@ This plugin uses a Rust-based parser compiled to WebAssembly for:
 ### Architecture
 
 ```
-plugin-agentscript/
+plugin-agency/
 ├── src/
 │   ├── commands/
-│   │   └── agentscript/
-│   │       ├── parse.ts       # Parse command
-│   │       ├── validate.ts    # Validate command
-│   │       └── version.ts     # Version command
+│   │   └── agency/
+│   │       ├── parse.ts           # sf agency parse
+│   │       ├── validate.ts        # sf agency validate
+│   │       ├── validate/
+│   │       │   └── platform.ts    # sf agency validate platform
+│   │       ├── actions.ts         # sf agency actions
+│   │       ├── deps.ts            # sf agency deps
+│   │       ├── graph.ts           # sf agency graph
+│   │       ├── list.ts            # sf agency list
+│   │       ├── query.ts           # sf agency query
+│   │       └── version.ts         # sf agency version
 │   └── index.ts
-├── messages/                   # Command help messages
-├── lib/                        # Compiled JavaScript (generated)
+├── messages/                      # Command help messages
+├── lib/                           # Compiled JavaScript (generated)
 └── package.json
 ```
 
@@ -240,8 +291,8 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please see the main repository at [composable-delivery/sf-agentscript](https://github.com/composable-delivery/sf-agentscript).
+Contributions are welcome! Please see the main repository at [composable-delivery/busbar-sf-agentscript](https://github.com/composable-delivery/busbar-sf-agentscript).
 
 ## Support
 
-For issues and questions, please file an issue on the [GitHub repository](https://github.com/composable-delivery/sf-agentscript/issues).
+For issues and questions, please file an issue on the [GitHub repository](https://github.com/composable-delivery/busbar-sf-agentscript/issues).

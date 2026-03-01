@@ -163,9 +163,9 @@ jobs:
         run: |
           VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "wasm-bindgen") | .version')
           cargo install wasm-bindgen-cli --version "$VERSION" --locked
-      - name: Build WASM parser package
+      - name: Build WASM package
         run: |
-          cargo build --lib --release --target wasm32-unknown-unknown --features wasm
+          cargo build --lib --release --target wasm32-unknown-unknown --features wasm,graph
           mkdir -p pkg
           wasm-bindgen --target web --out-dir pkg \
             target/wasm32-unknown-unknown/release/busbar_sf_agentscript.wasm
@@ -173,23 +173,6 @@ jobs:
             const fs = require('fs');
             fs.writeFileSync('pkg/package.json', JSON.stringify({
               name: 'busbar-sf-agentscript',
-              version: '0.1.0',
-              files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
-              main: 'busbar_sf_agentscript.js',
-              types: 'busbar_sf_agentscript.d.ts',
-              sideEffects: false
-            }, null, 2));
-          "
-      - name: Build WASM graph package
-        run: |
-          cargo build --lib --release --target wasm32-unknown-unknown --features wasm,graph
-          mkdir -p pkg-graph
-          wasm-bindgen --target web --out-dir pkg-graph \
-            target/wasm32-unknown-unknown/release/busbar_sf_agentscript.wasm
-          node -e "
-            const fs = require('fs');
-            fs.writeFileSync('pkg-graph/package.json', JSON.stringify({
-              name: 'busbar-sf-agentscript-graph',
               version: '0.1.0',
               files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
               main: 'busbar_sf_agentscript.js',

@@ -8,11 +8,11 @@ Parses an AgentScript file and extracts all action definitions with their comple
 
 # examples
 
-- Extract actions in table format: `sf agentscript-parser actions -f agent.agent`
-- Output as JSON: `sf agentscript-parser actions -f agent.agent --format json`
-- Generate TypeScript interfaces: `sf agentscript-parser actions -f agent.agent --format typescript`
-- Generate Markdown documentation: `sf agentscript-parser actions -f agent.agent --format markdown`
-- Filter to only flows: `sf agentscript-parser actions -f agent.agent --target flow`
+- Extract actions in table format: `sf agency actions -f agent.agent`
+- Output as JSON: `sf agency actions -f agent.agent --format json`
+- Generate TypeScript interfaces: `sf agency actions -f agent.agent --format typescript`
+- Generate Markdown documentation: `sf agency actions -f agent.agent --format markdown`
+- Filter to only flows: `sf agency actions -f agent.agent --target flow`
 
 # flags.file.summary
 

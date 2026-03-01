@@ -1,4 +1,4 @@
-# Usage Examples for @salesforce/plugin-agentscript
+# Usage Examples for sf-plugin-busbar-agency
 
 This document provides practical examples of using the AgentScript CLI plugin commands.
 
@@ -6,12 +6,12 @@ This document provides practical examples of using the AgentScript CLI plugin co
 
 1. Build the WASM package (from repository root):
    ```bash
-   wasm-pack build --target nodejs --features wasm
+   cargo build --lib --release --target wasm32-unknown-unknown --features wasm
    ```
 
 2. Install and link the plugin:
    ```bash
-   cd plugin-agentscript
+   cd plugin-agency
    npm install
    npm run build
    sf plugins link .
@@ -19,12 +19,12 @@ This document provides practical examples of using the AgentScript CLI plugin co
 
 ## Command Examples
 
-### `sf agentscript-parser version`
+### `sf agency version`
 
 Display the version of the AgentScript parser.
 
 ```bash
-$ sf agentscript-parser version
+$ sf agency version
 AgentScript Parser Version: 0.1.0
 ```
 
@@ -32,21 +32,21 @@ AgentScript Parser Version: 0.1.0
 
 ---
 
-### `sf agentscript-parser validate`
+### `sf agency validate`
 
 Validate the syntax of an AgentScript file.
 
 #### ✅ Valid File
 
 ```bash
-$ sf agentscript-parser validate --file examples/HelloWorld.agent
+$ sf agency validate --file examples/HelloWorld.agent
 ✓ examples/HelloWorld.agent is valid AgentScript
 ```
 
 #### ❌ Invalid File
 
 ```bash
-$ sf agentscript-parser validate --file examples/broken.agent
+$ sf agency validate --file examples/broken.agent
 ✗ Validation failed: found System at 175..181 expected end of input
 ```
 
@@ -58,14 +58,14 @@ $ sf agentscript-parser validate --file examples/broken.agent
 
 ---
 
-### `sf agentscript-parser parse`
+### `sf agency parse`
 
 Parse an AgentScript file and display its structure.
 
 #### Pretty Format (Default)
 
 ```bash
-$ sf agentscript-parser parse --file examples/HelloWorld.agent
+$ sf agency parse --file examples/HelloWorld.agent
 
 Successfully parsed: examples/HelloWorld.agent
 
@@ -93,7 +93,7 @@ Topics:
 #### JSON Format
 
 ```bash
-$ sf agentscript-parser parse --file examples/HelloWorld.agent --format json
+$ sf agency parse --file examples/HelloWorld.agent --format json
 ```
 
 Output (abbreviated):
@@ -158,7 +158,7 @@ fi
 
 echo "Validating AgentScript files..."
 for file in $AGENT_FILES; do
-  if ! sf agentscript-parser validate --file "$file"; then
+  if ! sf agency validate --file "$file"; then
     echo "❌ Validation failed for $file"
     exit 1
   fi
@@ -191,11 +191,11 @@ jobs:
       
       - name: Install AgentScript Plugin
         run: |
-          sf plugins install @salesforce/plugin-agentscript
+          sf plugins install sf-plugin-busbar-agency
       
       - name: Validate AgentScript Files
         run: |
-          find . -name "*.agent" -exec sf agentscript-parser validate --file {} \;
+          find . -name "*.agent" -exec sf agency validate --file {} \;
 ```
 
 ### Extract Configuration Values
@@ -205,15 +205,15 @@ Use `jq` with JSON output:
 ```bash
 # Get all agent names
 find . -name "*.agent" -exec sh -c \
-  'sf agentscript-parser parse --file "$1" --format json | jq -r ".config.node.agent_name.node"' \
+  'sf agency parse --file "$1" --format json | jq -r ".config.node.agent_name.node"' \
   _ {} \;
 
 # Get topic names for a specific agent
-sf agentscript-parser parse --file MyAgent.agent --format json | \
+sf agency parse --file MyAgent.agent --format json | \
   jq -r '.topics | keys[]'
 
 # Get all variable names and types
-sf agentscript-parser parse --file MyAgent.agent --format json | \
+sf agency parse --file MyAgent.agent --format json | \
   jq -r '.variables | to_entries[] | "\(.key): \(.value.node.var_type.node)"'
 ```
 
@@ -229,7 +229,7 @@ INVALID=0
 
 for file in $(find . -name "*.agent"); do
   TOTAL=$((TOTAL + 1))
-  if sf agentscript-parser validate --file "$file" > /dev/null 2>&1; then
+  if sf agency validate --file "$file" > /dev/null 2>&1; then
     VALID=$((VALID + 1))
     echo "✅ $file"
   else
@@ -259,7 +259,7 @@ for file in $(find . -name "*.agent"); do
   echo ""
   
   # Parse and extract key information
-  JSON=$(sf agentscript-parser parse --file "$file" --format json)
+  JSON=$(sf agency parse --file "$file" --format json)
   
   NAME=$(echo "$JSON" | jq -r '.config.node.agent_name.node')
   DESC=$(echo "$JSON" | jq -r '.config.node.description.node')
@@ -301,7 +301,7 @@ If you encounter issues:
 
 1. Verify the file exists and is readable
 2. Check the file has valid AgentScript syntax
-3. Ensure you're using the latest parser version: `sf agentscript-parser version`
+3. Ensure you're using the latest parser version: `sf agency version`
 4. Try parsing with JSON format to see the full AST structure
 5. Compare with working examples from agent-script-recipes
 
@@ -309,21 +309,21 @@ If you encounter issues:
 
 ## Getting Help
 
-- View command help: `sf agentscript-parser parse --help`
-- Report issues: https://github.com/composable-delivery/sf-agentscript/issues
+- View command help: `sf agency parse --help`
+- Report issues: https://github.com/composable-delivery/busbar-sf-agentscript/issues
 - Examples: See `agent-script-recipes/` in the repository
 - Documentation: See [PLUGIN.md](PLUGIN.md) and [README.md](README.md)
 
 ---
 
-### `sf agentscript-parser list`
+### `sf agency list`
 
 List specific elements from an AgentScript file.
 
 #### List Topics
 
 ```bash
-$ sf agentscript-parser list --file examples/CustomerService.agent --type topics
+$ sf agency list --file examples/CustomerService.agent --type topics
 
 Topics (3):
   • start_agent: topic_selector
@@ -334,7 +334,7 @@ Topics (3):
 #### List Variables
 
 ```bash
-$ sf agentscript-parser list --file examples/CustomerService.agent --type variables
+$ sf agency list --file examples/CustomerService.agent --type variables
 
 Variables (2):
   • customer_name: mutable string
@@ -344,7 +344,7 @@ Variables (2):
 #### List Actions
 
 ```bash
-$ sf agentscript-parser list --file examples/CustomerService.agent --type actions
+$ sf agency list --file examples/CustomerService.agent --type actions
 
 Actions (3):
   • start_agent.go_to_support
@@ -355,7 +355,7 @@ Actions (3):
 #### List Messages
 
 ```bash
-$ sf agentscript-parser list --file examples/CustomerService.agent --type messages
+$ sf agency list --file examples/CustomerService.agent --type messages
 
 Messages (2):
   • welcome: Hello! How can I help you today?
@@ -370,14 +370,14 @@ Messages (2):
 
 ---
 
-### `sf agentscript-parser query`
+### `sf agency query`
 
 Query and extract specific parts of the AST using dot-notation paths.
 
 #### Query Configuration
 
 ```bash
-$ sf agentscript-parser query --file examples/MyAgent.agent --path config.agent_name
+$ sf agency query --file examples/MyAgent.agent --path config.agent_name
 
 Query: config.agent_name
 
@@ -387,7 +387,7 @@ Result: "MyAgent"
 #### Query System Instructions
 
 ```bash
-$ sf agentscript-parser query --file examples/MyAgent.agent --path system.instructions
+$ sf agency query --file examples/MyAgent.agent --path system.instructions
 
 Query: system.instructions
 
@@ -397,7 +397,7 @@ Result: "You are a helpful customer service agent."
 #### Query Topic Description
 
 ```bash
-$ sf agentscript-parser query --file examples/MyAgent.agent --path topics.support.description
+$ sf agency query --file examples/MyAgent.agent --path topics.support.description
 
 Query: topics.support.description
 
@@ -407,7 +407,7 @@ Result: "Handle customer support requests"
 #### Query with JSON Output
 
 ```bash
-$ sf agentscript-parser query --file examples/MyAgent.agent --path topics --format json
+$ sf agency query --file examples/MyAgent.agent --path topics --format json
 {
   "support": {
     "node": {
@@ -436,7 +436,7 @@ $ sf agentscript-parser query --file examples/MyAgent.agent --path topics --form
 # Extract agent names from all .agent files
 
 for file in force-app/**/*.agent; do
-  name=$(sf agentscript-parser query --file "$file" --path config.agent_name --format json | jq -r '.data')
+  name=$(sf agency query --file "$file" --path config.agent_name --format json | jq -r '.data')
   echo "$file: $name"
 done
 ```
@@ -451,9 +451,9 @@ echo "# Agent Inventory" > AGENTS.md
 echo "" >> AGENTS.md
 
 for file in $(find . -name "*.agent"); do
-  name=$(sf agentscript-parser query --file "$file" --path config.agent_name 2>/dev/null)
-  topics=$(sf agentscript-parser list --file "$file" --type topics --format json 2>/dev/null | jq -r '.items | length')
-  vars=$(sf agentscript-parser list --file "$file" --type variables --format json 2>/dev/null | jq -r '.items | length')
+  name=$(sf agency query --file "$file" --path config.agent_name 2>/dev/null)
+  topics=$(sf agency list --file "$file" --type topics --format json 2>/dev/null | jq -r '.items | length')
+  vars=$(sf agency list --file "$file" --type variables --format json 2>/dev/null | jq -r '.items | length')
   
   echo "## $name" >> AGENTS.md
   echo "- File: \`$file\`" >> AGENTS.md
@@ -471,17 +471,17 @@ done
 
 for file in $(find . -name "*.agent"); do
   # Check for required config
-  if ! sf agentscript-parser query --file "$file" --path config.agent_name &>/dev/null; then
+  if ! sf agency query --file "$file" --path config.agent_name &>/dev/null; then
     echo "❌ $file: Missing agent_name"
   fi
   
   # Check for system instructions
-  if ! sf agentscript-parser query --file "$file" --path system.instructions &>/dev/null; then
+  if ! sf agency query --file "$file" --path system.instructions &>/dev/null; then
     echo "⚠️ $file: Missing system instructions"
   fi
   
   # Check for at least one topic
-  topic_count=$(sf agentscript-parser list --file "$file" --type topics --format json | jq -r '.items | length')
+  topic_count=$(sf agency list --file "$file" --type topics --format json | jq -r '.items | length')
   if [ "$topic_count" -eq 0 ]; then
     echo "❌ $file: No topics defined"
   else
@@ -503,12 +503,12 @@ echo "Comparing $FILE1 vs $FILE2"
 echo ""
 
 echo "Agent Names:"
-echo "  File 1: $(sf agentscript-parser query --file "$FILE1" --path config.agent_name)"
-echo "  File 2: $(sf agentscript-parser query --file "$FILE2" --path config.agent_name)"
+echo "  File 1: $(sf agency query --file "$FILE1" --path config.agent_name)"
+echo "  File 2: $(sf agency query --file "$FILE2" --path config.agent_name)"
 
 echo ""
 echo "Topic Counts:"
-echo "  File 1: $(sf agentscript-parser list --file "$FILE1" --type topics --format json | jq -r '.items | length')"
-echo "  File 2: $(sf agentscript-parser list --file "$FILE2" --type topics --format json | jq -r '.items | length')"
+echo "  File 1: $(sf agency list --file "$FILE1" --type topics --format json | jq -r '.items | length')"
+echo "  File 2: $(sf agency list --file "$FILE2" --type topics --format json | jq -r '.items | length')"
 ```
 
