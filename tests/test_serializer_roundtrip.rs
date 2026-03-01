@@ -123,3 +123,96 @@ topic support:
     assert_eq!(topic.name.node, "support");
     assert!(topic.reasoning.is_some());
 }
+
+#[test]
+fn test_roundtrip_connection_block() {
+    // Covers the `connection <name>:` block — the serializer writes it but no roundtrip
+    // test existed.  Ensures escalation routing metadata survives a parse → serialize →
+    // parse cycle.
+    let original = r#"config:
+   agent_name: "EscalationAgent"
+
+connection live_agent:
+   escalation_message: "Connecting you with a specialist."
+   outbound_route_type: "OmniChannelFlow"
+   outbound_route_name: "SpecialistQueue"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help or escalate"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    // Serialized output must contain connection block markers
+    assert!(serialized.contains("connection live_agent:"), "Missing connection block header");
+    assert!(serialized.contains("SpecialistQueue"), "Missing outbound_route_name value");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(reparsed.connections.len(), 1);
+    assert_eq!(reparsed.connections[0].node.name.node, "live_agent");
+    assert_eq!(reparsed.connections[0].node.entries.len(), 3);
+}
+
+#[test]
+fn test_roundtrip_language_block() {
+    // Covers the `language:` block — the serializer writes it but no roundtrip test
+    // existed.  Ensures locale settings survive a parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "LocaleAgent"
+
+language:
+   locale: "en_US"
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("language:"), "Missing language block");
+    assert!(serialized.contains("locale"), "Missing locale entry");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert!(reparsed.language.is_some(), "language block lost after roundtrip");
+    assert_eq!(reparsed.language.as_ref().unwrap().node.entries.len(), 1);
+}
+
+#[test]
+fn test_roundtrip_before_and_after_reasoning() {
+    // Covers `before_reasoning:` and `after_reasoning:` directive blocks inside a topic.
+    // The serializer handles these blocks but no roundtrip test existed.
+    let original = r#"config:
+   agent_name: "DirectiveAgent"
+
+variables:
+   turn_count: mutable integer = 0
+
+topic main:
+   description: "Main"
+
+   before_reasoning:
+      set @variables.turn_count = @variables.turn_count + 1
+
+   reasoning:
+      instructions: "Help the user"
+
+   after_reasoning:
+      set @variables.turn_count = @variables.turn_count + 1
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("before_reasoning:"), "Missing before_reasoning block");
+    assert!(serialized.contains("after_reasoning:"), "Missing after_reasoning block");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(reparsed.topics.len(), 1);
+    let topic = &reparsed.topics[0].node;
+    assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
+    assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
+}
