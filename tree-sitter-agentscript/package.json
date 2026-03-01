@@ -27,7 +27,7 @@
   "scripts": {
     "install": "node-gyp-build",
     "prebuild": "tree-sitter generate",
-    "build": "tree-sitter generate && node-gyp rebuild",
+    "build": "tree-sitter generate && npm install && node-gyp rebuild",
     "test": "tree-sitter test",
     "parse": "tree-sitter parse",
     "generate": "tree-sitter generate"

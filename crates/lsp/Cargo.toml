@@ -8,7 +8,6 @@ rust-version.workspace = true
 description = "Language Server Protocol server for Salesforce AgentScript"
 keywords = ["salesforce", "agentscript", "agentforce", "lsp", "language-server"]
 categories = ["development-tools"]
-publish = false
 
 [[bin]]
 name = "busbar-sf-agentscript-lsp"

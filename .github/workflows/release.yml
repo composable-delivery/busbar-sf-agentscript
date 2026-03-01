@@ -72,19 +72,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-            use_cross: false
-          - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
-            use_cross: true
           - target: aarch64-apple-darwin
             runner: macos-latest
-            use_cross: false
-          - target: x86_64-apple-darwin
-            runner: macos-13
-            use_cross: false
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
-            use_cross: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,15 +86,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      - name: Install cross
-        if: matrix.use_cross
-        uses: taiki-e/install-action@cross
-      - name: Build (native)
-        if: "!matrix.use_cross"
+      - name: Build
         run: cargo build -p busbar-sf-agentscript-lsp --release --target ${{ matrix.target }}
-      - name: Build (cross)
-        if: matrix.use_cross
-        run: cross build -p busbar-sf-agentscript-lsp --release --target ${{ matrix.target }}
       - name: Rename binary (Unix)
         if: matrix.target != 'x86_64-pc-windows-msvc'
         run: |
@@ -206,12 +190,6 @@ jobs:
         include:
           - vsce_target: linux-x64
             lsp_target: x86_64-unknown-linux-gnu
-            lsp_ext: ""
-          - vsce_target: linux-arm64
-            lsp_target: aarch64-unknown-linux-gnu
-            lsp_ext: ""
-          - vsce_target: darwin-x64
-            lsp_target: x86_64-apple-darwin
             lsp_ext: ""
           - vsce_target: darwin-arm64
             lsp_target: aarch64-apple-darwin

@@ -15,7 +15,6 @@ description = "AgentScript parser, graph analysis, and LSP for Salesforce Agentf
 readme = "README.md"
 keywords = ["salesforce", "agentscript", "agentforce", "parser", "graph"]
 categories = ["parser-implementations", "development-tools"]
-publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
