@@ -1,0 +1,656 @@
+{
+  "commands": {
+    "agency:actions": {
+      "aliases": [],
+      "args": {},
+      "description": "Parses an AgentScript file and extracts all action definitions with their complete interfaces, including inputs, outputs, and target information. This is useful for understanding the Salesforce org dependencies and generating type definitions.",
+      "examples": [
+        "Extract actions in table format: `sf agency actions -f agent.agent`",
+        "Output as JSON: `sf agency actions -f agent.agent --format json`",
+        "Generate TypeScript interfaces: `sf agency actions -f agent.agent --format typescript`",
+        "Generate Markdown documentation: `sf agency actions -f agent.agent --format markdown`",
+        "Filter to only flows: `sf agency actions -f agent.agent --target flow`"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The AgentScript (.agent) file to extract action interfaces from.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to analyze.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "char": "o",
+          "description": "Controls how the action interfaces are displayed. Use 'json' for machine-readable output, 'table' for human-readable summary, 'typescript' to generate TypeScript interface definitions, or 'markdown' for documentation.",
+          "name": "format",
+          "summary": "Output format (json, table, typescript, markdown).",
+          "default": "table",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "json",
+            "table",
+            "typescript",
+            "markdown"
+          ],
+          "type": "option"
+        },
+        "target": {
+          "char": "t",
+          "description": "Only show actions with the specified target type. Use 'flow' for Salesforce Flows, 'apex' for Apex classes, 'prompt' for Prompt Templates, or 'all' to show everything.",
+          "name": "target",
+          "summary": "Filter by target type (all, flow, apex, prompt).",
+          "default": "all",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "all",
+            "flow",
+            "apex",
+            "prompt"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:actions",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Extract action interface definitions from an AgentScript file.",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "actions.js"
+      ]
+    },
+    "agency:deps": {
+      "aliases": [],
+      "args": {},
+      "description": "Analyze an AgentScript file to identify all Salesforce org dependencies including SObjects, Flows, Apex classes, Knowledge bases, Connections, and more. This is useful for deployment planning and impact analysis.",
+      "examples": [
+        "Extract all dependencies from an AgentScript file:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent",
+        "Get dependencies as JSON:\n<%= config.bin %> <%= command.id %> --file agent.agent --format json",
+        "Get only Flow dependencies:\n<%= config.bin %> <%= command.id %> --file agent.agent --type flows",
+        "Get a summary of dependency counts:\n<%= config.bin %> <%= command.id %> --file agent.agent --format summary"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to analyze for dependencies. The file must exist and be readable.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to analyze",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "char": "o",
+          "description": "Specify the output format. Use 'json' for machine-readable output, 'table' for human-readable lists, or 'summary' for a count overview.",
+          "name": "format",
+          "summary": "Output format (json, table, or summary)",
+          "default": "table",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "json",
+            "table",
+            "summary"
+          ],
+          "type": "option"
+        },
+        "type": {
+          "char": "t",
+          "description": "Filter the output to show only specific types of dependencies: 'all' (default), 'sobjects', 'flows', 'apex', 'knowledge', or 'connections'.",
+          "name": "type",
+          "summary": "Filter by dependency type",
+          "default": "all",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "all",
+            "sobjects",
+            "flows",
+            "apex",
+            "knowledge",
+            "connections"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:deps",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Extract Salesforce org dependencies from an AgentScript file",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "deps.js"
+      ]
+    },
+    "agency:graph": {
+      "aliases": [],
+      "args": {},
+      "description": "Parses an AgentScript file and renders its execution flow as a graph. By default, renders colored ASCII art in the terminal. Use --format graphml to export GraphML XML for visualization in external tools like yEd, Gephi, or Cytoscape.",
+      "examples": [
+        "Show topic flow (transitions between topics): `sf aslab graph -f agent.agent`",
+        "Show all actions within topics: `sf aslab graph -f agent.agent --view actions`",
+        "Show full graph with all nodes: `sf aslab graph -f agent.agent --view full`",
+        "Export as GraphML for external visualization: `sf aslab graph -f agent.agent --format graphml`",
+        "Export GraphML to a file: `sf aslab graph -f agent.agent --format graphml > agent-graph.graphml`"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The AgentScript (.agent) file to render as a graph.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to visualize.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "view": {
+          "char": "v",
+          "description": "Controls what level of detail to show. Use 'topics' for high-level topic transitions, 'actions' for topic and action nodes, or 'full' for all nodes including variables and connections.",
+          "name": "view",
+          "summary": "Graph view type (topics, actions, full).",
+          "default": "topics",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "topics",
+            "actions",
+            "full"
+          ],
+          "type": "option"
+        },
+        "format": {
+          "description": "Output format for the graph. Use 'ascii' for colored terminal output, or 'graphml' for XML export compatible with yEd, Gephi, Cytoscape, and other graph visualization tools.",
+          "name": "format",
+          "summary": "Output format (ascii or graphml).",
+          "default": "ascii",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "ascii",
+            "graphml"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:graph",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Render a graph visualization of an AgentScript file.",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "graph.js"
+      ]
+    },
+    "agency:list": {
+      "aliases": [],
+      "args": {},
+      "description": "List specific types of elements from an AgentScript file, such as topics, variables, actions, or system messages. This provides a quick overview of the key components in your agent without viewing the full AST.",
+      "examples": [
+        "List all topics:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --type topics",
+        "List all variables:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --type variables",
+        "List all actions:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --type actions",
+        "List system messages:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --type messages",
+        "Output as JSON:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --type topics --format json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to list elements from. The file must exist and be readable.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to analyze",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "type": {
+          "char": "t",
+          "description": "Specify which type of elements to list from the AgentScript file. Options are: 'topics' (conversation topics), 'variables' (agent variables), 'actions' (defined actions), or 'messages' (system messages).",
+          "name": "type",
+          "required": true,
+          "summary": "Type of elements to list",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "topics",
+            "variables",
+            "actions",
+            "messages"
+          ],
+          "type": "option"
+        },
+        "format": {
+          "char": "o",
+          "description": "Choose how to display the list. 'pretty' provides a human-readable formatted list, while 'json' outputs the data in JSON format suitable for programmatic use.",
+          "name": "format",
+          "summary": "Output format for the list",
+          "default": "pretty",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "json",
+            "pretty"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:list",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "List elements from an AgentScript file",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "list.js"
+      ]
+    },
+    "agency:parse": {
+      "aliases": [],
+      "args": {},
+      "description": "Parse an AgentScript file using the WASM-based parser and output the Abstract Syntax Tree (AST). The output can be in JSON format for programmatic use or in a pretty-printed format for human readability.",
+      "examples": [
+        "Parse a file and display pretty output:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent",
+        "Parse a file and output JSON:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent --format json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to parse. The file must exist and be readable.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to parse",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "char": "o",
+          "description": "Choose how to display the parsed Abstract Syntax Tree. 'pretty' provides a human-readable summary, while 'json' outputs the full AST in JSON format suitable for programmatic use.",
+          "name": "format",
+          "summary": "Output format for the parsed AST",
+          "default": "pretty",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "json",
+            "pretty"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:parse",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Parse an AgentScript file and output its AST",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "parse.js"
+      ]
+    },
+    "agency:query": {
+      "aliases": [],
+      "args": {},
+      "description": "Extract and display specific parts of an AgentScript file's Abstract Syntax Tree using a path-based query syntax. This allows you to inspect configuration values, topic details, variable definitions, and other AST elements without viewing the entire tree.",
+      "examples": [
+        "Query the agent name:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --path config.agent_name",
+        "Query all topics:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --path topics",
+        "Query a specific topic's description:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --path topics.main.description",
+        "Query with JSON output:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --path system.messages --format json",
+        "Query variables:\n<%= config.bin %> <%= command.id %> --file MyAgent.agent --path variables"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to query. The file must exist and be readable.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to query",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "path": {
+          "char": "p",
+          "description": "A dot-separated path to the element you want to extract from the AST. For example: 'config.agent_name' or 'topics.main.description'. Use array indices for arrays: 'topics.0.name'.",
+          "name": "path",
+          "required": true,
+          "summary": "Dot-notation path to the AST element to query",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "char": "o",
+          "description": "Choose how to display the query result. 'pretty' provides a human-readable summary, while 'json' outputs the raw data in JSON format suitable for programmatic use.",
+          "name": "format",
+          "summary": "Output format for the query result",
+          "default": "pretty",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "json",
+            "pretty"
+          ],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:query",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Query specific parts of an AgentScript AST",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "query.js"
+      ]
+    },
+    "agency:validate": {
+      "aliases": [],
+      "args": {},
+      "description": "Validate an AgentScript file to check if it has valid syntax according to the AgentScript language specification. This command uses the WASM-based parser to perform syntax validation without executing the script.",
+      "examples": [
+        "Validate an AgentScript file:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to validate. The file must exist and be readable.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to validate",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:validate",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Validate an AgentScript file",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "validate.js"
+      ]
+    },
+    "agency:version": {
+      "aliases": [],
+      "args": {},
+      "description": "Display the version of the AgentScript parser being used by this plugin. This is useful for debugging and ensuring you're using the correct version of the parser.",
+      "examples": [
+        "Display the parser version:\n<%= config.bin %> <%= command.id %>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:version",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Display the AgentScript parser version",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "version.js"
+      ]
+    },
+    "agency:validate:platform": {
+      "aliases": [],
+      "args": {},
+      "description": "Sends an AgentScript file to the Salesforce platform for validation using the same Python-based compiler that runs during deployment. This catches issues that local WASM validation cannot detect, such as platform-specific constraints and runtime compatibility.\n\nThe command automatically:\n- Creates a temporary DX project structure around the agent file\n- Injects `default_agent_user` if missing (using the target org's username)\n- Runs `sf agent validate authoring-bundle` against the target org\n- Combines platform results with local WASM validation\n- Cleans up temporary files\n\nRequires a Salesforce org with Agentforce enabled (Einstein1AIPlatform feature).",
+      "examples": [
+        "Validate against a scratch org:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent --target-org my-scratch-org",
+        "Validate with JSON output:\n<%= config.bin %> <%= command.id %> --file agent.agent --target-org my-org --json",
+        "Skip local WASM validation:\n<%= config.bin %> <%= command.id %> --file agent.agent --target-org my-org --skip-local"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "The path to the AgentScript (.agent) file that you want to validate against the Salesforce platform.",
+          "name": "file",
+          "required": true,
+          "summary": "Path to the AgentScript file to validate.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "target-org": {
+          "char": "o",
+          "description": "The Salesforce org to use for platform validation. Must have Agentforce features enabled (Einstein1AIPlatform).",
+          "name": "target-org",
+          "noCacheDefault": true,
+          "required": true,
+          "summary": "Salesforce org to validate against.",
+          "hasDynamicHelp": true,
+          "multiple": false,
+          "type": "option"
+        },
+        "skip-local": {
+          "description": "By default, both local WASM validation and platform validation are run. Use this flag to skip the local validation and only run platform validation.",
+          "name": "skip-local",
+          "summary": "Skip local WASM validation.",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": true,
+      "hiddenAliases": [],
+      "id": "agency:validate:platform",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Validate an AgentScript file against the Salesforce platform compiler.",
+      "enableJsonFlag": true,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "validate",
+        "platform.js"
+      ]
+    }
+  },
+  "version": "0.0.1-beta.2"
+}

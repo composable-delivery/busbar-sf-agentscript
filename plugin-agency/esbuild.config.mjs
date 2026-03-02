@@ -19,7 +19,7 @@ function copyMessages() {
 // Copy WASM files to lib directory and commands directory
 function copyWasmFiles() {
   const wasmSources = [
-    { pkg: 'busbar-sf-agentscript' },
+    { pkg: '@muselab/busbar-sf-agentscript' },
   ];
 
   const libDir = join(__dirname, 'lib');
@@ -55,6 +55,7 @@ function copyWasmFiles() {
 const buildOptions = {
   entryPoints: [
     'src/index.ts',
+    'src/wasm-loader.ts',
     'src/commands/agency/parse.ts',
     'src/commands/agency/validate.ts',
     'src/commands/agency/version.ts',
@@ -68,7 +69,7 @@ const buildOptions = {
   bundle: true,
   platform: 'node',
   target: 'node18',
-  format: 'cjs',
+  format: 'esm',
   outdir: 'lib',
   outExtension: { '.js': '.js' },
   sourcemap: true,

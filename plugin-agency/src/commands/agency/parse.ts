@@ -4,12 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from 'busbar-sf-agentscript';
+import * as parser from '../../wasm-loader.js';
 
-// After bundling, __dirname is lib/commands/agentscript-parser/ - go up 3 levels to plugin root
-const pluginRoot = path.resolve(__dirname, '..', '..', '..');
-Messages.importMessagesDirectory(pluginRoot);
-const messages = Messages.loadMessages('sf-plugin-busbar-agency', 'agency.parse');
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.parse');
 
 // Type definition for parsed AgentScript AST
 interface ParsedAgentScript {
@@ -96,9 +94,12 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
           }
 
           if (configData.length > 0) {
-            ux.table(configData, {
-              property: { header: 'Configuration' },
-              value: { header: 'Value' },
+            ux.table({
+              data: configData,
+              columns: [
+                { key: 'property', name: 'Configuration' },
+                { key: 'value', name: 'Value' },
+              ],
             });
             this.log('');
           }
@@ -121,10 +122,13 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
             });
           }
 
-          ux.table(varData, {
-            name: { header: 'Name' },
-            type: { header: 'Type' },
-            modifiers: { header: 'Modifiers' },
+          ux.table({
+            data: varData,
+            columns: [
+              { key: 'name', name: 'Name' },
+              { key: 'type', name: 'Type' },
+              { key: 'modifiers', name: 'Modifiers' },
+            ],
           });
           this.log('');
         }
@@ -158,9 +162,12 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
             });
           }
 
-          ux.table(topicData, {
-            name: { header: 'Topic' },
-            description: { header: 'Description' },
+          ux.table({
+            data: topicData,
+            columns: [
+              { key: 'name', name: 'Topic' },
+              { key: 'description', name: 'Description' },
+            ],
           });
           this.log('');
         }

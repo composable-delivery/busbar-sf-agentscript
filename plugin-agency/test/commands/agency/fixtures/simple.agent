@@ -1,0 +1,14 @@
+config:
+   agent_name: "TestAgent"
+   agent_label: "Test Agent"
+   description: "A simple agent for testing"
+
+variables:
+   greeting: mutable string = ""
+      description: "The greeting message"
+
+system:
+   messages:
+      welcome: "Hello! How can I help you today?"
+
+   instructions: "You are a helpful test assistant."

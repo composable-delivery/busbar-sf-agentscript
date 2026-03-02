@@ -1,6 +1,6 @@
 {
-  "name": "tree-sitter-agentscript",
-  "version": "0.0.1",
+  "name": "@muselab/tree-sitter-agentscript",
+  "version": "0.0.1-beta.3",
   "description": "Tree-sitter grammar for Salesforce AgentScript",
   "main": "bindings/node",
   "types": "bindings/node",
@@ -18,11 +18,11 @@
   "author": "Composable Delivery",
   "license": "MIT",
   "dependencies": {
-    "nan": "^2.18.0",
+    "nan": "^2.25.0",
     "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
-    "tree-sitter-cli": "^0.22.6"
+    "tree-sitter-cli": "^0.26.6"
   },
   "scripts": {
     "install": "node-gyp-build",

@@ -1,6 +1,6 @@
 [package]
 name = "busbar-sf-agentscript-zed"
-version = "0.0.1"
+version = "0.0.1-beta.3"
 edition = "2021"
 
 [workspace]

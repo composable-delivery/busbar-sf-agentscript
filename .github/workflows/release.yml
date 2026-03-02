@@ -3,11 +3,12 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"        # stable:     v0.1.0
+      - "v[0-9]+.[0-9]+.[0-9]+-*"      # pre-release: v0.1.0-beta.3
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v0.0.1)"
+        description: "Tag to release (e.g. v0.0.1 or v0.0.1-beta.3)"
         required: false
 
 concurrency:
@@ -28,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      npm_tag: ${{ steps.version.outputs.npm_tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Extract version
@@ -39,12 +42,22 @@ jobs:
           fi
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Releasing version $VERSION"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            NPM_TAG="${VERSION#*-}"   # e.g. beta.3
+            NPM_TAG="${NPM_TAG%%.*}"  # e.g. beta
+            echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Releasing version $VERSION (npm tag: ${NPM_TAG:-latest})"
 
   publish-crates:
     name: Publish crates to crates.io
     runs-on: ubuntu-latest
     needs: [validate]
+    if: needs.validate.outputs.is_prerelease == 'false'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -166,7 +179,7 @@ jobs:
           node -e "
             const fs = require('fs');
             fs.writeFileSync('dist/wasm/package.json', JSON.stringify({
-              name: 'busbar-sf-agentscript',
+              name: '@muselab/busbar-sf-agentscript',
               version: '${{ needs.validate.outputs.version }}',
               files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
               main: 'busbar_sf_agentscript.js',
@@ -261,9 +274,7 @@ jobs:
           cache-dependency-path: tree-sitter-agentscript/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
 
   publish-wasm-npm:
     name: Publish WASM to npm
@@ -281,9 +292,7 @@ jobs:
           path: dist/wasm/
       - name: Publish to npm
         working-directory: dist/wasm/
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
 
   publish-sf-plugin-npm:
     name: Publish SF plugin to npm
@@ -304,22 +313,22 @@ jobs:
           timeout=120
           interval=5
           elapsed=0
-          until npm view busbar-sf-agentscript@$VERSION version 2>/dev/null; do
+          until npm view @muselab/busbar-sf-agentscript@$VERSION version 2>/dev/null; do
             if [ $elapsed -ge $timeout ]; then
-              echo "Timed out waiting for busbar-sf-agentscript@$VERSION on npm"
+              echo "Timed out waiting for @muselab/busbar-sf-agentscript@$VERSION on npm"
               exit 1
             fi
-            echo "Waiting for busbar-sf-agentscript@$VERSION... (${elapsed}s / ${timeout}s)"
+            echo "Waiting for @muselab/busbar-sf-agentscript@$VERSION... (${elapsed}s / ${timeout}s)"
             sleep $interval
             elapsed=$((elapsed + interval))
           done
-          echo "busbar-sf-agentscript@$VERSION is available"
+          echo "@muselab/busbar-sf-agentscript@$VERSION is available"
       - name: Update WASM dependency to published npm version
         run: |
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.dependencies['busbar-sf-agentscript'] = '${{ needs.validate.outputs.version }}';
+            pkg.dependencies['@muselab/busbar-sf-agentscript'] = '${{ needs.validate.outputs.version }}';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
       - name: Install dependencies
@@ -327,9 +336,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
 
   github-release:
     name: Create GitHub Release

@@ -4,14 +4,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as graph from 'busbar-sf-agentscript';
+import * as graph from '../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from 'busbar-sf-agentscript';
+import * as parser from '../../wasm-loader.js';
 
-// After bundling, __dirname is lib/commands/agentscript-parser/ - go up 3 levels to plugin root
-const pluginRoot = path.resolve(__dirname, '..', '..', '..');
-Messages.importMessagesDirectory(pluginRoot);
-const messages = Messages.loadMessages('sf-plugin-busbar-agency', 'agency.deps');
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.deps');
 
 interface ActionParameter {
   name: string;
@@ -270,9 +268,12 @@ export default class AgentscriptDeps extends SfCommand<DepsResult> {
       }));
 
     if (tableData.length > 0) {
-      ux.table(tableData, {
-        category: { header: 'Category' },
-        count: { header: 'Count' },
+      ux.table({
+        data: tableData,
+        columns: [
+          { key: 'category', name: 'Category' },
+          { key: 'count', name: 'Count' },
+        ],
       });
     } else {
       this.log(`  ${ansis.dim('No dependencies found')}`);

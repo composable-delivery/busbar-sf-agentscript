@@ -1,11 +1,12 @@
 {
-  "name": "sf-plugin-busbar-agency",
-  "version": "0.0.1",
+  "name": "@muselab/sf-plugin-busbar-agency",
+  "version": "0.0.1-beta.3",
   "description": "Salesforce CLI plugin for AgentScript parsing and validation using WASM",
   "author": "Composable Delivery",
   "bugs": "https://github.com/composable-delivery/busbar-sf-agentscript/issues",
   "homepage": "https://github.com/composable-delivery/busbar-sf-agentscript",
   "license": "MIT",
+  "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "repository": "composable-delivery/busbar-sf-agentscript",
@@ -24,10 +25,10 @@
     "oclif"
   ],
   "scripts": {
-    "build": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs && oclif manifest",
     "clean": "rm -rf lib && rm -f tsconfig.tsbuildinfo",
-    "prepack": "npm run build",
-    "test": "mocha --loader=ts-node/esm --extensions ts --recursive \"test/**/*.test.ts\"",
+    "prepack": "npm run build && oclif manifest",
+    "test": "vitest run",
     "test:integration": "node test-wasm.js"
   },
   "engines": {
@@ -47,22 +48,18 @@
     }
   },
   "dependencies": {
-    "@oclif/core": "^3.27.0",
-    "@salesforce/core": "^7.5.0",
-    "@salesforce/sf-plugins-core": "^11.3.12",
-    "ansis": "^3.17.0",
-    "busbar-sf-agentscript": "file:../pkg",
+    "@oclif/core": "^4.8.2",
+    "@salesforce/core": "^8.26.3",
+    "@salesforce/sf-plugins-core": "^12.2.6",
+    "ansis": "^4.2.0",
+    "@muselab/busbar-sf-agentscript": "0.0.1-beta.3",
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@oclif/test": "^4.1.15",
-    "@types/chai": "^5.2.3",
-    "@types/mocha": "^10.0.10",
     "@types/node": "^25.0.3",
-    "chai": "^6.2.1",
-    "esbuild": "^0.24.0",
-    "mocha": "^11.7.5",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "esbuild": "^0.27.3",
+    "oclif": "^4",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   }
 }

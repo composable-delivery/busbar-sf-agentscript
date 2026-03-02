@@ -77,7 +77,7 @@ codegen-units = 1
 # ─── Workspace-wide metadata ──────────────────────────────────────────────────
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.1-beta.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/composable-delivery/busbar-sf-agentscript"
@@ -85,8 +85,8 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 # Internal crates
-busbar-sf-agentscript     = { version = "0.0.1", path = "." }
-busbar-sf-agentscript-lsp = { version = "0.0.1", path = "crates/lsp" }
+busbar-sf-agentscript     = { version = "0.0.1-beta.3", path = "." }
+busbar-sf-agentscript-lsp = { version = "0.0.1-beta.3", path = "crates/lsp" }
 
 # Serialization
 serde       = { version = "1.0", features = ["derive"] }
@@ -103,3 +103,12 @@ petgraph  = "0.6"
 
 # Pretty-print diffs (tests)
 pretty_assertions = "1.4"
+
+# MCP server
+rmcp = { version = "0.15", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
+anyhow = "1.0"

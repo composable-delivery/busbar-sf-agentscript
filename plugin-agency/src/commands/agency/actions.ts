@@ -4,12 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from 'busbar-sf-agentscript';
+import * as parser from '../../wasm-loader.js';
 
-// After bundling, __dirname is lib/commands/agentscript-parser/ - go up 3 levels to plugin root
-const pluginRoot = path.resolve(__dirname, '..', '..', '..');
-Messages.importMessagesDirectory(pluginRoot);
-const messages = Messages.loadMessages('sf-plugin-busbar-agency', 'agency.actions');
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.actions');
 
 interface ActionParameter {
   name: string;
@@ -258,9 +256,12 @@ export default class AgentscriptActions extends SfCommand<ActionsResult> {
       count: count.toString(),
     }));
 
-    ux.table(summaryData, {
-      type: { header: 'Target Type' },
-      count: { header: 'Count' },
+    ux.table({
+      data: summaryData,
+      columns: [
+        { key: 'type', name: 'Target Type' },
+        { key: 'count', name: 'Count' },
+      ],
     });
 
     this.log('');
@@ -284,12 +285,16 @@ export default class AgentscriptActions extends SfCommand<ActionsResult> {
         outputs: this.formatParamsSummary(action.outputs),
       }));
 
-      ux.table(tableData, {
-        action: { header: 'Action' },
-        target: { header: 'Target' },
-        inputs: { header: 'Inputs' },
-        outputs: { header: 'Outputs' },
-      }, { 'no-truncate': true });
+      ux.table({
+        data: tableData,
+        columns: [
+          { key: 'action', name: 'Action' },
+          { key: 'target', name: 'Target' },
+          { key: 'inputs', name: 'Inputs' },
+          { key: 'outputs', name: 'Outputs' },
+        ],
+        overflow: 'wrap',
+      });
 
       this.log('');
 

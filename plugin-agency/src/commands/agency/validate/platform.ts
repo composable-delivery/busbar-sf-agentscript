@@ -1,19 +1,18 @@
 import { SfCommand, Flags, Ux } from "@salesforce/sf-plugins-core";
 import { Messages } from "@salesforce/core";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { execSync } from "child_process";
 import ansis from "ansis";
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from "busbar-sf-agentscript";
+import * as parser from '../../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as graph from "busbar-sf-agentscript";
+import * as graph from '../../../wasm-loader.js';
 
-// After bundling, __dirname is lib/commands/agency/validate/ - go up 4 levels to plugin root
-const pluginRoot = path.resolve(__dirname, "..", "..", "..", "..");
-Messages.importMessagesDirectory(pluginRoot);
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages(
-  "sf-plugin-busbar-agency",
+  "@muselab/sf-plugin-busbar-agency",
   "agency.validate.platform",
 );
 
@@ -86,7 +85,7 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
 
     // Create temp DX project
     const tmpDir = fs.mkdtempSync(
-      path.join(require("os").tmpdir(), "agency-validate-"),
+      path.join(os.tmpdir(), "agency-validate-"),
     );
     let platformResult: PlatformValidateResult["platform"] = {
       success: false,
@@ -230,24 +229,20 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
           this.log("");
 
           if (issues.length > 0) {
-            ux.table(issues, {
-              severity: {
-                header: "Type",
-                get: (row) =>
-                  row.severity === "Error"
-                    ? ansis.red(row.severity)
-                    : ansis.yellow(row.severity),
-              },
-              location: {
-                header: "Location",
-                get: (row: any) =>
-                  row.line ? `L${row.line}:C${row.column}` : "-",
-              },
-              message: { header: "Message" },
-              hint: {
-                header: "Hint",
-                get: (row: any) => (row.hint ? ansis.dim(row.hint) : ""),
-              },
+            const tableData = issues.map((row: any) => ({
+              type: row.severity === "Error" ? ansis.red(row.severity) : ansis.yellow(row.severity),
+              location: row.line ? `L${row.line}:C${row.column}` : "-",
+              message: row.message,
+              hint: row.hint ? ansis.dim(row.hint) : "",
+            }));
+            ux.table({
+              data: tableData,
+              columns: [
+                { key: 'type', name: 'Type' },
+                { key: 'location', name: 'Location' },
+                { key: 'message', name: 'Message' },
+                { key: 'hint', name: 'Hint' },
+              ],
             });
             this.log("");
           }

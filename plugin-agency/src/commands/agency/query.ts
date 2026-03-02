@@ -4,12 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from 'busbar-sf-agentscript';
+import * as parser from '../../wasm-loader.js';
 
-// After bundling, __dirname is lib/commands/agentscript-parser/ - go up 3 levels to plugin root
-const pluginRoot = path.resolve(__dirname, '..', '..', '..');
-Messages.importMessagesDirectory(pluginRoot);
-const messages = Messages.loadMessages('sf-plugin-busbar-agency', 'agency.query');
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.query');
 
 interface QueryResult {
   data: unknown;
@@ -142,9 +140,12 @@ export default class AgentscriptQuery extends SfCommand<QueryResult> {
         };
       });
 
-      ux.table(tableData, {
-        index: { header: 'Index' },
-        value: { header: 'Value' },
+      ux.table({
+        data: tableData,
+        columns: [
+          { key: 'index', name: 'Index' },
+          { key: 'value', name: 'Value' },
+        ],
       });
 
       if (data.length > 10) {
@@ -181,9 +182,12 @@ export default class AgentscriptQuery extends SfCommand<QueryResult> {
         };
       });
 
-      ux.table(tableData, {
-        property: { header: 'Property' },
-        value: { header: 'Value' },
+      ux.table({
+        data: tableData,
+        columns: [
+          { key: 'property', name: 'Property' },
+          { key: 'value', name: 'Value' },
+        ],
       });
     }
   }
