@@ -104,12 +104,3 @@ petgraph  = "0.6"
 
 # Pretty-print diffs (tests)
 pretty_assertions = "1.4"
-
-# MCP server
-rmcp = { version = "0.15", features = ["server", "macros", "transport-io"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-clap = { version = "4", features = ["derive"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-parking_lot = "0.12"
-anyhow = "1.0"
