@@ -7,6 +7,7 @@ import ansis from "ansis";
 import * as parser from '../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as graph from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages(
@@ -23,11 +24,12 @@ export type ValidationIssue = {
 };
 
 export type ValidationResult = {
+  file: string;
   valid: boolean;
   issues: ValidationIssue[];
 };
 
-export default class AgentscriptValidate extends SfCommand<ValidationResult> {
+export default class AgentscriptValidate extends SfCommand<ValidationResult | ValidationResult[]> {
   public static readonly summary = messages.getMessage("summary");
   public static readonly description = messages.getMessage("description");
   public static readonly examples = messages.getMessages("examples");
@@ -37,18 +39,52 @@ export default class AgentscriptValidate extends SfCommand<ValidationResult> {
       char: "f",
       summary: messages.getMessage("flags.file.summary"),
       description: messages.getMessage("flags.file.description"),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
   };
 
-  public async run(): Promise<ValidationResult> {
+  public async run(): Promise<ValidationResult | ValidationResult[]> {
     const { flags } = await this.parse(AgentscriptValidate);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
     try {
-      // Read the AgentScript file
-      const filePath = path.resolve(flags.file as string);
+      const files = resolveTargetFiles({
+        file: flags.file,
+        scanPath: flags.path,
+        dataDir: this.config.dataDir,
+      });
+
+      const results: ValidationResult[] = [];
+
+      for (const filePath of files) {
+        if (files.length > 1) {
+          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+        }
+        results.push(await this.validateFile(filePath, ux));
+      }
+
+      return files.length === 1 ? results[0] : results;
+    } catch (error) {
+      if (error instanceof Error) {
+        ux.styledHeader("Validation Result");
+        this.log("");
+        this.log(`  ${ansis.red("✗")} ${ansis.redBright("Validation failed")}`);
+        this.log(`    ${ansis.dim(error.message)}`);
+        this.log("");
+        this.error(error.message);
+      }
+      throw error;
+    }
+  }
+
+  private async validateFile(filePath: string, ux: Ux): Promise<ValidationResult> {
+    try {
       const source = fs.readFileSync(filePath, "utf-8");
       const fileName = path.basename(filePath);
 
@@ -184,7 +220,7 @@ export default class AgentscriptValidate extends SfCommand<ValidationResult> {
         process.exitCode = 1;
       }
 
-      return { valid: isValid, issues };
+      return { file: path.relative(process.cwd(), filePath), valid: isValid, issues };
     } catch (error) {
       if (error instanceof Error) {
         ux.styledHeader("Validation Result");

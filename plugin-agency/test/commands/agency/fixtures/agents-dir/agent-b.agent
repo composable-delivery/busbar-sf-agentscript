@@ -1,0 +1,4 @@
+config:
+   agent_name: "AgentB"
+   agent_label: "Agent B"
+   description: "Second test agent for multi-file tests"

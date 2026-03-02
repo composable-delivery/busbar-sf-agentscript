@@ -1,6 +1,6 @@
 id = "agentscript"
 name = "AgentScript"
-version = "0.0.1-beta.3"
+version = "0.0.2"
 schema_version = 1
 authors = ["Jason Lantz"]
 description = "Salesforce AgentScript language support, LSP, and MCP server"

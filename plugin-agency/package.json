@@ -1,6 +1,6 @@
 {
   "name": "@muselab/sf-plugin-busbar-agency",
-  "version": "0.0.1-beta.3",
+  "version": "0.0.2",
   "description": "Salesforce CLI plugin for AgentScript parsing and validation using WASM",
   "author": "Composable Delivery",
   "bugs": "https://github.com/composable-delivery/busbar-sf-agentscript/issues",
@@ -44,6 +44,9 @@
       },
       "agency validate": {
         "description": "Validate AgentScript files locally and against the Salesforce platform"
+      },
+      "agency agents": {
+        "description": "Manage the set of AgentScript files targeted by other commands"
       }
     }
   },
@@ -52,7 +55,8 @@
     "@salesforce/core": "^8.26.3",
     "@salesforce/sf-plugins-core": "^12.2.6",
     "ansis": "^4.2.0",
-    "@muselab/busbar-sf-agentscript": "0.0.1-beta.3",
+    "@muselab/busbar-sf-agentscript": "0.0.2",
+    "@inquirer/prompts": "^7.5.2",
     "zod": "^4.3.5"
   },
   "devDependencies": {

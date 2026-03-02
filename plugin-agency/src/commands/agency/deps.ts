@@ -2,11 +2,13 @@ import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as graph from '../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.deps');
@@ -48,6 +50,7 @@ interface DependencyReport {
 }
 
 interface DepsResult {
+  file: string;
   report: DependencyReport;
   interfaces: ActionInterface[];
   summary: {
@@ -56,7 +59,13 @@ interface DepsResult {
   };
 }
 
-export default class AgentscriptDeps extends SfCommand<DepsResult> {
+interface GroupedDepEntry {
+  dependency: string;
+  type: string;
+  agents: string[];
+}
+
+export default class AgentscriptDeps extends SfCommand<DepsResult | DepsResult[] | GroupedDepEntry[]> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -66,8 +75,13 @@ export default class AgentscriptDeps extends SfCommand<DepsResult> {
       char: 'f',
       summary: messages.getMessage('flags.file.summary'),
       description: messages.getMessage('flags.file.description'),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     format: Flags.option({
       char: 'o',
@@ -83,58 +97,240 @@ export default class AgentscriptDeps extends SfCommand<DepsResult> {
       options: ['all', 'sobjects', 'flows', 'apex', 'knowledge', 'connections'] as const,
       default: 'all',
     })(),
+    group: Flags.option({
+      summary: messages.getMessage('flags.group.summary'),
+      description: messages.getMessage('flags.group.description'),
+      options: ['file', 'dependency'] as const,
+      default: 'file',
+    })(),
+    retrieve: Flags.boolean({
+      summary: messages.getMessage('flags.retrieve.summary'),
+      description: messages.getMessage('flags.retrieve.description'),
+      default: false,
+    }),
+    'target-org': Flags.optionalOrg({
+      summary: messages.getMessage('flags.target-org.summary'),
+      description: messages.getMessage('flags.target-org.description'),
+    }),
   };
 
-  public async run(): Promise<DepsResult> {
+  public async run(): Promise<DepsResult | DepsResult[] | GroupedDepEntry[]> {
     const { flags } = await this.parse(AgentscriptDeps);
 
     try {
-      const filePath = path.resolve(flags.file as string);
-      const source = fs.readFileSync(filePath, 'utf-8');
+      const files = resolveTargetFiles({
+        file: flags.file,
+        scanPath: flags.path,
+        dataDir: this.config.dataDir,
+      });
 
-      // Extract dependencies using graph crate
-      const report = graph.extract_dependencies(source) as DependencyReport;
+      const results: DepsResult[] = [];
 
-      // Extract action interfaces using parser
-      const ast = parser.parse_agent(source);
-      const interfaces = this.extractActionInterfaces(ast);
+      for (const filePath of files) {
+        if (files.length > 1 && flags.group !== 'dependency') {
+          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+        }
 
-      const summary = {
-        total:
-          report.sobjects.length +
-          report.fields.length +
-          report.flows.length +
-          report.apex_classes.length +
-          report.knowledge_bases.length +
-          report.connections.length +
-          report.prompt_templates.length +
-          report.external_services.length,
-        by_category: {
-          sobjects: report.sobjects.length,
-          fields: report.fields.length,
-          flows: report.flows.length,
-          apex_classes: report.apex_classes.length,
-          knowledge_bases: report.knowledge_bases.length,
-          connections: report.connections.length,
-          prompt_templates: report.prompt_templates.length,
-          external_services: report.external_services.length,
-        },
-      };
+        const file = path.relative(process.cwd(), filePath);
+        const source = fs.readFileSync(filePath, 'utf-8');
 
-      if (flags.format === 'json') {
-        this.log(JSON.stringify({ report, interfaces, summary }, null, 2));
-      } else if (flags.format === 'summary') {
-        this.displaySummary(summary);
-      } else {
-        this.displayTable(report, interfaces, flags.type as string);
+        const report = graph.extract_dependencies(source) as DependencyReport;
+        const ast = parser.parse_agent(source);
+        const interfaces = this.extractActionInterfaces(ast);
+
+        const summary = {
+          total:
+            report.sobjects.length +
+            report.fields.length +
+            report.flows.length +
+            report.apex_classes.length +
+            report.knowledge_bases.length +
+            report.connections.length +
+            report.prompt_templates.length +
+            report.external_services.length,
+          by_category: {
+            sobjects: report.sobjects.length,
+            fields: report.fields.length,
+            flows: report.flows.length,
+            apex_classes: report.apex_classes.length,
+            knowledge_bases: report.knowledge_bases.length,
+            connections: report.connections.length,
+            prompt_templates: report.prompt_templates.length,
+            external_services: report.external_services.length,
+          },
+        };
+
+        if (flags.group !== 'dependency') {
+          if (flags.format === 'json') {
+            this.log(JSON.stringify({ file, report, interfaces, summary }, null, 2));
+          } else if (flags.format === 'summary') {
+            this.displaySummary(summary);
+          } else {
+            this.displayTable(report, interfaces, flags.type as string);
+          }
+        }
+
+        if (flags.retrieve) {
+          if (!flags['target-org']) {
+            throw messages.createError('error.retrieveRequiresOrg');
+          }
+          const org = flags['target-org'];
+          const orgAlias = org.getUsername() ?? '';
+          this.runRetrieval(report, orgAlias);
+        }
+
+        results.push({ file, report, interfaces, summary });
       }
 
-      return { report, interfaces, summary };
+      if (flags.group === 'dependency') {
+        const grouped = this.groupByDependency(results);
+        if (flags.format === 'json') {
+          this.log(JSON.stringify(grouped, null, 2));
+        } else {
+          this.displayGrouped(grouped);
+        }
+        return grouped;
+      }
+
+      return files.length === 1 ? results[0] : results;
     } catch (error) {
       if (error instanceof Error) {
         throw messages.createError('error.extractionFailure', [error.message]);
       }
       throw error;
+    }
+  }
+
+  private groupByDependency(results: DepsResult[]): GroupedDepEntry[] {
+    const map = new Map<string, { type: string; agents: Set<string> }>();
+
+    const addDeps = (deps: string[], type: string, file: string) => {
+      for (const dep of deps) {
+        const key = `${type}:${dep}`;
+        if (!map.has(key)) {
+          map.set(key, { type, agents: new Set() });
+        }
+        map.get(key)!.agents.add(file);
+      }
+    };
+
+    for (const result of results) {
+      const { report, file } = result;
+      addDeps(report.sobjects, 'sobject', file);
+      addDeps(report.fields, 'field', file);
+      addDeps(report.flows, 'flow', file);
+      addDeps(report.apex_classes, 'apex_class', file);
+      addDeps(report.knowledge_bases, 'knowledge_base', file);
+      addDeps(report.connections, 'connection', file);
+      addDeps(report.prompt_templates, 'prompt_template', file);
+      addDeps(report.external_services, 'external_service', file);
+    }
+
+    return Array.from(map.entries())
+      .map(([key, val]) => ({
+        dependency: key.slice(key.indexOf(':') + 1),
+        type: val.type,
+        agents: Array.from(val.agents).sort(),
+      }))
+      .sort((a, b) => a.type.localeCompare(b.type) || a.dependency.localeCompare(b.dependency));
+  }
+
+  private displayGrouped(grouped: GroupedDepEntry[]): void {
+    const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
+    ux.styledHeader(`Dependencies by Resource (${grouped.length} unique)`);
+    this.log('');
+
+    const byType = new Map<string, GroupedDepEntry[]>();
+    for (const entry of grouped) {
+      const list = byType.get(entry.type) ?? [];
+      list.push(entry);
+      byType.set(entry.type, list);
+    }
+
+    const typeColors: Record<string, (s: string) => string> = {
+      sobject: ansis.cyan,
+      field: ansis.blue,
+      flow: ansis.cyanBright,
+      apex_class: ansis.magentaBright,
+      knowledge_base: ansis.yellow,
+      connection: ansis.green,
+      prompt_template: ansis.greenBright,
+      external_service: ansis.red,
+    };
+
+    for (const [type, entries] of byType) {
+      const colorFn = typeColors[type] ?? ansis.white;
+      this.log(colorFn.bold(type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())) + ansis.dim(` (${entries.length})`));
+      for (const entry of entries) {
+        this.log(`  ${ansis.green('▸')} ${ansis.bold(entry.dependency)}`);
+        for (const agent of entry.agents) {
+          this.log(`      ${ansis.dim('•')} ${ansis.dim(agent)}`);
+        }
+      }
+      this.log('');
+    }
+  }
+
+  private runRetrieval(report: DependencyReport, orgAlias: string): void {
+    const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
+
+    const metadataArgs: string[] = [];
+    for (const flow of report.flows) {
+      metadataArgs.push(`Flow:${flow}`);
+    }
+    for (const cls of report.apex_classes) {
+      metadataArgs.push(`ApexClass:${cls}`);
+    }
+    for (const prompt of report.prompt_templates) {
+      metadataArgs.push(`LightningComponentBundle:${prompt}`);
+    }
+
+    if (metadataArgs.length === 0) {
+      if (!this.jsonEnabled()) {
+        this.log(ansis.dim('  No retrievable metadata found (flows, apex classes, or prompt templates).'));
+      }
+      return;
+    }
+
+    if (!this.jsonEnabled()) {
+      ux.styledHeader('Retrieving Metadata');
+      this.log('');
+      for (const m of metadataArgs) {
+        this.log(`  ${ansis.green('•')} ${m}`);
+      }
+      this.log('');
+    }
+
+    const metadataFlags = metadataArgs.map(m => `"${m}"`).join(' ');
+    const cmd = `sf project retrieve start --metadata ${metadataFlags} --target-org ${orgAlias} --json`;
+
+    try {
+      const output = execSync(cmd, {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      const json = JSON.parse(output);
+      if (!this.jsonEnabled()) {
+        if (json.status === 0) {
+          this.log(ansis.green('  ✓ Retrieval complete'));
+          if (json.result?.files) {
+            for (const f of json.result.files) {
+              this.log(`    ${ansis.dim(f.filePath ?? f)}`);
+            }
+          }
+        } else {
+          this.log(ansis.yellow('  ! Retrieval completed with warnings'));
+        }
+      }
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; message?: string };
+      const msg = execError.stdout
+        ? (() => { try { return JSON.parse(execError.stdout).message; } catch { return execError.message; } })()
+        : execError.message;
+      if (!this.jsonEnabled()) {
+        this.log(ansis.red(`  ✗ Retrieval failed: ${msg ?? 'Unknown error'}`));
+      }
     }
   }
 

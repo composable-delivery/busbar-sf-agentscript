@@ -5,9 +5,15 @@ import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.parse');
+
+interface ParseResult {
+  file: string;
+  ast: ParsedAgentScript;
+}
 
 // Type definition for parsed AgentScript AST
 interface ParsedAgentScript {
@@ -30,7 +36,7 @@ interface ParsedAgentScript {
   topics?: Record<string, unknown>;
 }
 
-export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
+export default class AgentscriptParse extends SfCommand<ParseResult | ParseResult[]> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -40,8 +46,13 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
       char: 'f',
       summary: messages.getMessage('flags.file.summary'),
       description: messages.getMessage('flags.file.description'),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     format: Flags.option({
       char: 'o',
@@ -52,28 +63,38 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
     })(),
   };
 
-  public async run(): Promise<ParsedAgentScript> {
+  public async run(): Promise<ParseResult | ParseResult[]> {
     const { flags } = await this.parse(AgentscriptParse);
 
     try {
-      // Read the AgentScript file
-      const filePath = path.resolve(flags.file as string);
-      const source = fs.readFileSync(filePath, 'utf-8');
+      const files = resolveTargetFiles({
+        file: flags.file,
+        scanPath: flags.path,
+        dataDir: this.config.dataDir,
+      });
 
-      // Parse using WASM with timing
-      const startTime = performance.now();
-      const ast = parser.parse_agent(source);
-      const elapsed = (performance.now() - startTime).toFixed(2);
+      const results: ParseResult[] = [];
 
-      // Output based on format
-      if (flags.format === 'json') {
-        this.log(JSON.stringify(ast, null, 2));
-        return ast;
-      } else {
+      for (const filePath of files) {
+        if (files.length > 1) {
+          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+        }
+
+        const source = fs.readFileSync(filePath, 'utf-8');
+        const file = path.relative(process.cwd(), filePath);
+        const startTime = performance.now();
+        const ast = parser.parse_agent(source);
+        const elapsed = (performance.now() - startTime).toFixed(2);
+
+        if (flags.format === 'json') {
+          this.log(JSON.stringify({ file, ast }, null, 2));
+          results.push({ file, ast });
+          continue;
+        }
+
+        {
         const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
-
-        // Header with file name
-        ux.styledHeader(`Parsed: ${path.basename(flags.file as string)}`);
+        ux.styledHeader(`Parsed: ${path.basename(filePath)}`);
         this.log('');
 
         if (ast.config) {
@@ -173,8 +194,12 @@ export default class AgentscriptParse extends SfCommand<ParsedAgentScript> {
         }
 
         this.log(ansis.green('✓') + ' Parse successful ' + ansis.dim(`(${elapsed}ms)`));
-        return ast;
+        results.push({ file, ast });
+        }
       }
+
+      return files.length === 1 ? results[0] : results;
+
     } catch (error) {
       if (error instanceof Error) {
         throw messages.createError('error.parseFailure', [error.message]);

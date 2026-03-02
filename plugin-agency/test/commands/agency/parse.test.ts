@@ -16,13 +16,15 @@ describe('agency parse', () => {
     expect(AgentscriptParse.flags).toHaveProperty('format');
   });
 
-  it('parses a simple .agent file and returns AST', async () => {
+  it('parses a simple .agent file and returns ParseResult with file + ast', async () => {
     const result = await AgentscriptParse.run(
       ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'json'],
       undefined
     );
     expect(result).toBeTypeOf('object');
-    expect(result).toHaveProperty('config');
+    expect(result).toHaveProperty('file');
+    expect(result).toHaveProperty('ast');
+    expect((result as any).ast).toHaveProperty('config');
   });
 
   it('parses a minimal .agent file', async () => {
@@ -31,7 +33,7 @@ describe('agency parse', () => {
       undefined
     );
     expect(result).toBeTypeOf('object');
-    expect(result.config).toBeTruthy();
+    expect((result as any).ast.config).toBeTruthy();
   });
 
   it('fails gracefully on a missing file', async () => {

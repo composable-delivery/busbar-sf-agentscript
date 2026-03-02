@@ -1,0 +1,8 @@
+config:
+   agent_name: "AgentA"
+   agent_label: "Agent A"
+   description: "First test agent for multi-file tests"
+
+variables:
+   status: mutable string = ""
+      description: "Current status"

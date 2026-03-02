@@ -812,6 +812,12 @@ pub enum Expr {
     /// Null value: `None`.
     None,
 
+    /// Slot-fill token: `...`
+    ///
+    /// Instructs the LLM to infer the value. Used in `with` clauses:
+    /// `with order_id = ...`
+    SlotFill,
+
     /// Array literal: `[item1, item2, ...]`.
     List(Vec<Spanned<Expr>>),
 

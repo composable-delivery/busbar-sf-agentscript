@@ -73,7 +73,6 @@ code --install-extension vscode-agentscript-<version>.vsix
 - Hover documentation
 - Semantic token highlighting
 - Topic graph visualization (`AgentScript: Show Topic Graph`)
-- Agent simulation (`AgentScript: Simulate Agent`)
 - AgentScript Dependencies panel in the Explorer sidebar
 
 **Settings:**

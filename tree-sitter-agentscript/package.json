@@ -1,6 +1,6 @@
 {
   "name": "@muselab/tree-sitter-agentscript",
-  "version": "0.0.1-beta.3",
+  "version": "0.0.2",
   "description": "Tree-sitter grammar for Salesforce AgentScript",
   "main": "bindings/node",
   "types": "bindings/node",

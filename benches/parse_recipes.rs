@@ -5,6 +5,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use glob::glob;
+use rayon::prelude::*;
 use std::fs;
 
 /// Load all recipe files from the agent-script-recipes submodule.
@@ -79,6 +80,14 @@ fn bench_parse_all(c: &mut Criterion) {
         });
     });
 
+    group.bench_function("parse_parallel", |b| {
+        b.iter(|| {
+            recipes.par_iter().for_each(|(_, content)| {
+                let _ = black_box(busbar_sf_agentscript::parse(content));
+            });
+        });
+    });
+
     group.bench_function("parse_and_serialize", |b| {
         b.iter(|| {
             for (_, content) in &recipes {
@@ -86,6 +95,16 @@ fn bench_parse_all(c: &mut Criterion) {
                     let _ = black_box(serde_json::to_string(&ast));
                 }
             }
+        });
+    });
+
+    group.bench_function("parse_and_serialize_parallel", |b| {
+        b.iter(|| {
+            recipes.par_iter().for_each(|(_, content)| {
+                if let Ok(ast) = busbar_sf_agentscript::parse(content) {
+                    let _ = black_box(serde_json::to_string(&ast));
+                }
+            });
         });
     });
 

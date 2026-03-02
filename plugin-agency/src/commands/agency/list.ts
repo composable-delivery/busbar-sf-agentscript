@@ -5,16 +5,18 @@ import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.list');
 
 interface ListResult {
+  file: string;
   type: string;
   items: string[];
 }
 
-export default class AgentscriptList extends SfCommand<ListResult> {
+export default class AgentscriptList extends SfCommand<ListResult | ListResult[]> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -24,8 +26,13 @@ export default class AgentscriptList extends SfCommand<ListResult> {
       char: 'f',
       summary: messages.getMessage('flags.file.summary'),
       description: messages.getMessage('flags.file.description'),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     type: Flags.option({
       char: 't',
@@ -43,25 +50,38 @@ export default class AgentscriptList extends SfCommand<ListResult> {
     })(),
   };
 
-  public async run(): Promise<ListResult> {
+  public async run(): Promise<ListResult | ListResult[]> {
     const { flags } = await this.parse(AgentscriptList);
 
     try {
-      // Read and parse the AgentScript file
-      const filePath = path.resolve(flags.file as string);
-      const source = fs.readFileSync(filePath, 'utf-8');
-      const ast = parser.parse_agent(source);
+      const files = resolveTargetFiles({
+        file: flags.file,
+        scanPath: flags.path,
+        dataDir: this.config.dataDir,
+      });
 
-      // List the requested type
-      const items = this.listItems(ast, flags.type);
+      const results: ListResult[] = [];
 
-      if (flags.format === 'json') {
-        this.log(JSON.stringify({ type: flags.type, items }, null, 2));
-      } else {
-        this.displayPretty(flags.type, items);
+      for (const filePath of files) {
+        if (files.length > 1) {
+          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+        }
+
+        const source = fs.readFileSync(filePath, 'utf-8');
+        const ast = parser.parse_agent(source);
+        const items = this.listItems(ast, flags.type);
+
+        const file = path.relative(process.cwd(), filePath);
+        if (flags.format === 'json') {
+          this.log(JSON.stringify({ file, type: flags.type, items }, null, 2));
+        } else {
+          this.displayPretty(flags.type, items);
+        }
+
+        results.push({ file, type: flags.type, items });
       }
 
-      return { type: flags.type, items };
+      return files.length === 1 ? results[0] : results;
     } catch (error) {
       if (error instanceof Error) {
         throw messages.createError('error.listFailure', [error.message]);

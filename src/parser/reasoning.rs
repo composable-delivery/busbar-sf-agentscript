@@ -10,7 +10,7 @@ use crate::lexer::Token;
 use chumsky::prelude::*;
 
 use super::expressions::{expr, reference};
-use super::instructions::{dynamic_instructions, simple_instructions, static_instructions};
+use super::instructions::any_instructions;
 use super::primitives::{
     dedent, description_entry, ident, indent, newline, skip_block_noise, spanned_ident, string_lit,
     to_ast_span, ParserInput, Span,
@@ -308,9 +308,7 @@ pub(crate) fn reasoning_block<'tokens, 'src: 'tokens>() -> impl Parser<
         .ignore_then(indent())
         .ignore_then(
             choice((
-                simple_instructions().map(ReasoningEntry::Instructions),
-                static_instructions().map(ReasoningEntry::Instructions),
-                dynamic_instructions().map(ReasoningEntry::Instructions),
+                any_instructions().map(ReasoningEntry::Instructions),
                 just(Token::Actions)
                     .map_with(|_, e| e.span()) // Capture the span of 'actions'
                     .then_ignore(just(Token::Colon))

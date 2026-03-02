@@ -373,35 +373,6 @@ fn agent_file_parser<'tokens, 'src: 'tokens>() -> impl Parser<
     AgentFile,
     extra::Err<Rich<'tokens, Token<'src>, primitives::Span>>,
 > + Clone {
-    // Top-level blocks - each with noise handling before them (including DEDENTs)
-    let config = skip_toplevel_noise()
-        .ignore_then(config_block())
-        .map(TopLevelBlock::Config);
-    let variables = skip_toplevel_noise()
-        .ignore_then(variables_block())
-        .map(TopLevelBlock::Variables);
-    let system = skip_toplevel_noise()
-        .ignore_then(system_block())
-        .map(TopLevelBlock::System);
-    let start_agent = skip_toplevel_noise()
-        .ignore_then(start_agent_block())
-        .map(TopLevelBlock::StartAgent);
-    let topic = skip_toplevel_noise()
-        .ignore_then(topic_block())
-        .map(TopLevelBlock::Topic);
-    let language = skip_toplevel_noise()
-        .ignore_then(language_block())
-        .map(TopLevelBlock::Language);
-    let connection = skip_toplevel_noise()
-        .ignore_then(connection_block())
-        .map(TopLevelBlock::Connection);
-
-    // Legacy connections: block - emit helpful error message
-    let legacy_connections = skip_toplevel_noise().ignore_then(legacy_connections_block());
-
-    // Skip trailing whitespace including any final DEDENTs
-    let trailing_noise = skip_toplevel_noise();
-
     // Recovery strategy: when parsing fails, skip until we find a top-level keyword
     // and retry. This captures errors with proper context from .labelled() calls.
     let recovery_until = choice((
@@ -414,27 +385,38 @@ fn agent_file_parser<'tokens, 'src: 'tokens>() -> impl Parser<
         just(Token::Connection).ignored(),
     ));
 
-    // Parse blocks with choice (try each parser)
-    // Note: legacy_connections must come AFTER connection to avoid early matching
-    choice((config, variables, system, start_agent, topic, language, connection))
-        .or(legacy_connections.map(|_| {
-            // This shouldn't be reached since legacy_connections emits an error,
-            // but we need to return something for type checking
-            TopLevelBlock::Config(Spanned::new(
-                ConfigBlock {
-                    agent_name: Spanned::new("error".to_string(), 0..0),
-                    agent_label: None,
-                    description: None,
-                    agent_type: None,
-                    default_agent_user: None,
-                },
-                0..0,
+    // Parse noise once, then dispatch on the block type.
+    // This avoids redundantly parsing skip_toplevel_noise() for each alternative.
+    skip_toplevel_noise()
+        .ignore_then(
+            choice((
+                config_block().map(TopLevelBlock::Config),
+                variables_block().map(TopLevelBlock::Variables),
+                system_block().map(TopLevelBlock::System),
+                start_agent_block().map(TopLevelBlock::StartAgent),
+                topic_block().map(TopLevelBlock::Topic),
+                language_block().map(TopLevelBlock::Language),
+                connection_block().map(TopLevelBlock::Connection),
             ))
-        }))
+            .or(legacy_connections_block().map(|_| {
+                // This shouldn't be reached since legacy_connections emits an error,
+                // but we need to return something for type checking
+                TopLevelBlock::Config(Spanned::new(
+                    ConfigBlock {
+                        agent_name: Spanned::new("error".to_string(), 0..0),
+                        agent_label: None,
+                        description: None,
+                        agent_type: None,
+                        default_agent_user: None,
+                    },
+                    0..0,
+                ))
+            })),
+        )
         .recover_with(skip_then_retry_until(any().ignored(), recovery_until))
         .repeated()
         .collect::<Vec<_>>()
-        .then_ignore(trailing_noise)
+        .then_ignore(skip_toplevel_noise())
         .then_ignore(end())
         .map(|blocks| {
             let mut file = AgentFile::default();

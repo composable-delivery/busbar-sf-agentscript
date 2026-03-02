@@ -22,12 +22,14 @@ function copyWasmFiles() {
     { pkg: '@muselab/busbar-sf-agentscript' },
   ];
 
-  const libDir = join(__dirname, 'lib');
+    const libDir = join(__dirname, 'lib');
   const commandsDir = join(__dirname, 'lib', 'commands', 'agency');
   const validateDir = join(__dirname, 'lib', 'commands', 'agency', 'validate');
+  const agentsDir = join(__dirname, 'lib', 'commands', 'agency', 'agents');
+  const libLibDir = join(__dirname, 'lib', 'lib');
 
   // Ensure directories exist
-  for (const dir of [libDir, commandsDir, validateDir]) {
+  for (const dir of [libDir, commandsDir, validateDir, agentsDir, libLibDir]) {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -45,6 +47,8 @@ function copyWasmFiles() {
           console.log(`Copied ${file} to lib/commands/agency/`);
           copyFileSync(join(pkgDir, file), join(validateDir, file));
           console.log(`Copied ${file} to lib/commands/agency/validate/`);
+          copyFileSync(join(pkgDir, file), join(agentsDir, file));
+          console.log(`Copied ${file} to lib/commands/agency/agents/`);
         }
       }
     }
@@ -64,7 +68,12 @@ const buildOptions = {
     'src/commands/agency/deps.ts',
     'src/commands/agency/actions.ts',
     'src/commands/agency/graph.ts',
+    'src/commands/agency/paths.ts',
+    'src/commands/agency/impact.ts',
     'src/commands/agency/validate/platform.ts',
+    'src/commands/agency/agents/list.ts',
+    'src/commands/agency/agents/select.ts',
+    'src/lib/agent-files.ts',
   ],
   bundle: true,
   platform: 'node',

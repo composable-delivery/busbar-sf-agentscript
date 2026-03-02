@@ -513,8 +513,8 @@ impl RefGraphBuilder {
                 self.add_expression_edges(from_idx, object);
                 self.add_expression_edges(from_idx, index);
             }
-            // Literals don't have references
-            Expr::String(_) | Expr::Number(_) | Expr::Bool(_) | Expr::None => {}
+            // Literals and slot-fill don't have references
+            Expr::String(_) | Expr::Number(_) | Expr::Bool(_) | Expr::None | Expr::SlotFill => {}
         }
     }
 

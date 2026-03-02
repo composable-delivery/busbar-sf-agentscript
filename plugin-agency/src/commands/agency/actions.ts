@@ -5,6 +5,7 @@ import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as parser from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.actions');
@@ -35,6 +36,7 @@ interface ActionInterface {
 }
 
 interface ActionsResult {
+  file: string;
   actions: ActionInterface[];
   summary: {
     total: number;
@@ -43,7 +45,7 @@ interface ActionsResult {
   };
 }
 
-export default class AgentscriptActions extends SfCommand<ActionsResult> {
+export default class AgentscriptActions extends SfCommand<ActionsResult | ActionsResult[]> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -53,8 +55,13 @@ export default class AgentscriptActions extends SfCommand<ActionsResult> {
       char: 'f',
       summary: messages.getMessage('flags.file.summary'),
       description: messages.getMessage('flags.file.description'),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     format: Flags.option({
       char: 'o',
@@ -72,43 +79,55 @@ export default class AgentscriptActions extends SfCommand<ActionsResult> {
     })(),
   };
 
-  public async run(): Promise<ActionsResult> {
+  public async run(): Promise<ActionsResult | ActionsResult[]> {
     const { flags } = await this.parse(AgentscriptActions);
 
     try {
-      const filePath = path.resolve(flags.file as string);
-      const source = fs.readFileSync(filePath, 'utf-8');
-      const ast = parser.parse_agent(source);
+      const files = resolveTargetFiles({
+        file: flags.file,
+        scanPath: flags.path,
+        dataDir: this.config.dataDir,
+      });
 
-      const actions = this.extractActions(ast);
+      const results: ActionsResult[] = [];
 
-      // Filter by target type if specified
-      const filteredActions = flags.target === 'all'
-        ? actions
-        : actions.filter(a => a.targetType === flags.target);
+      for (const filePath of files) {
+        if (files.length > 1) {
+          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+        }
 
-      const summary = {
-        total: filteredActions.length,
-        byTargetType: this.countBy(filteredActions, 'targetType'),
-        byLocation: this.countBy(filteredActions, 'location'),
-      };
+        const source = fs.readFileSync(filePath, 'utf-8');
+        const ast = parser.parse_agent(source);
+        const actions = this.extractActions(ast);
 
-      // Format output
-      switch (flags.format) {
-        case 'json':
-          this.log(JSON.stringify({ actions: filteredActions, summary }, null, 2));
-          break;
-        case 'typescript':
-          this.outputTypeScript(filteredActions);
-          break;
-        case 'markdown':
-          this.outputMarkdown(filteredActions, summary);
-          break;
-        default:
-          this.outputTable(filteredActions, summary);
+        const filteredActions = flags.target === 'all'
+          ? actions
+          : actions.filter(a => a.targetType === flags.target);
+
+        const summary = {
+          total: filteredActions.length,
+          byTargetType: this.countBy(filteredActions, 'targetType'),
+          byLocation: this.countBy(filteredActions, 'location'),
+        };
+
+        switch (flags.format) {
+          case 'json':
+            this.log(JSON.stringify({ actions: filteredActions, summary }, null, 2));
+            break;
+          case 'typescript':
+            this.outputTypeScript(filteredActions);
+            break;
+          case 'markdown':
+            this.outputMarkdown(filteredActions, summary);
+            break;
+          default:
+            this.outputTable(filteredActions, summary);
+        }
+
+        results.push({ file: path.relative(process.cwd(), filePath), actions: filteredActions, summary });
       }
 
-      return { actions: filteredActions, summary };
+      return files.length === 1 ? results[0] : results;
     } catch (error) {
       if (error instanceof Error) {
         throw messages.createError('error.extractionFailure', [error.message]);

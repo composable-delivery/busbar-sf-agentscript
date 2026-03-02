@@ -1,32 +1,41 @@
 # summary
 
-Query specific parts of an AgentScript AST
+Query specific parts of an AgentScript file
 
 # description
 
-Extract and display specific parts of an AgentScript file's Abstract Syntax Tree using a path-based query syntax. This allows you to inspect configuration values, topic details, variable definitions, and other AST elements without viewing the entire tree.
+Query topics, variables, actions, or raw AST elements in an AgentScript file using a path-based syntax.
+
+Use semantic paths to inspect well-known constructs:
+- `/topics/<name>` — incoming references and outgoing transitions for a topic
+- `/variables/<name>` — readers and writers for a variable
+- `/actions/<name>` — action definition and the reasoning steps that invoke it
+
+Use dot-notation paths for raw AST access:
+- `config.agent_name` — read a specific AST property
+- `topics.0.name` — index into arrays
 
 # examples
 
-- Query the agent name:
+- Query a topic's incoming and outgoing connections:
 
-  <%= config.bin %> <%= command.id %> --file MyAgent.agent --path config.agent_name
+  <%= config.bin %> <%= command.id %> /topics/fraud_review --file MyAgent.agent
 
-- Query all topics:
+- Query variable readers and writers:
 
-  <%= config.bin %> <%= command.id %> --file MyAgent.agent --path topics
+  <%= config.bin %> <%= command.id %> /variables/accountId --file MyAgent.agent
 
-- Query a specific topic's description:
+- Query who invokes an action:
 
-  <%= config.bin %> <%= command.id %> --file MyAgent.agent --path topics.main.description
+  <%= config.bin %> <%= command.id %> /actions/checkCredit --file MyAgent.agent
 
-- Query with JSON output:
+- Query a topic across all agents in the repo:
 
-  <%= config.bin %> <%= command.id %> --file MyAgent.agent --path system.messages --format json
+  <%= config.bin %> <%= command.id %> /topics/fraud_review --path ./agents
 
-- Query variables:
+- Query raw AST with JSON output:
 
-  <%= config.bin %> <%= command.id %> --file MyAgent.agent --path variables
+  <%= config.bin %> <%= command.id %> config.agent_name --file MyAgent.agent --format json
 
 # flags.file.summary
 
@@ -36,17 +45,9 @@ Path to the AgentScript file to query
 
 The path to the AgentScript (.agent) file that you want to query. The file must exist and be readable.
 
-# flags.path.summary
-
-Dot-notation path to the AST element to query
-
-# flags.path.description
-
-A dot-separated path to the element you want to extract from the AST. For example: 'config.agent_name' or 'topics.main.description'. Use array indices for arrays: 'topics.0.name'.
-
 # flags.format.summary
 
-Output format for the query result
+Output format (pretty or json)
 
 # flags.format.description
 
@@ -54,4 +55,4 @@ Choose how to display the query result. 'pretty' provides a human-readable summa
 
 # error.queryFailure
 
-Failed to query AgentScript AST: %s
+Failed to query AgentScript: %s

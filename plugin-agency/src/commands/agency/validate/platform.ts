@@ -9,6 +9,7 @@ import ansis from "ansis";
 import * as parser from '../../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
 import * as graph from '../../../wasm-loader.js';
+import { resolveTargetFiles } from '../../../lib/agent-files.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages(
@@ -35,7 +36,7 @@ interface PlatformValidateResult {
   injectedDefaultUser: boolean;
 }
 
-export default class ValidatePlatform extends SfCommand<PlatformValidateResult> {
+export default class ValidatePlatform extends SfCommand<PlatformValidateResult | PlatformValidateResult[]> {
   public static readonly summary = messages.getMessage("summary");
   public static readonly description = messages.getMessage("description");
   public static readonly examples = messages.getMessages("examples");
@@ -45,8 +46,13 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
       char: "f",
       summary: messages.getMessage("flags.file.summary"),
       description: messages.getMessage("flags.file.description"),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     "target-org": Flags.requiredOrg({
       summary: messages.getMessage("flags.target-org.summary"),
@@ -59,15 +65,38 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
     }),
   };
 
-  public async run(): Promise<PlatformValidateResult> {
+  public async run(): Promise<PlatformValidateResult | PlatformValidateResult[]> {
     const { flags } = await this.parse(ValidatePlatform);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
-    const filePath = path.resolve(flags.file as string);
-    const source = fs.readFileSync(filePath, "utf-8");
-    const fileName = path.basename(filePath);
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
+
     const org = flags["target-org"];
     const orgAlias = org.getUsername() ?? "";
+    const results: PlatformValidateResult[] = [];
+
+    for (const filePath of files) {
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+      }
+      results.push(await this.validateFilePlatform(filePath, orgAlias, flags["skip-local"], ux));
+    }
+
+    return files.length === 1 ? results[0] : results;
+  }
+
+  private async validateFilePlatform(
+    filePath: string,
+    orgAlias: string,
+    skipLocal: boolean,
+    ux: Ux,
+  ): Promise<PlatformValidateResult> {
+    const source = fs.readFileSync(filePath, "utf-8");
+    const fileName = path.basename(filePath);
 
     // Extract agent_name from config block
     const agentName = extractAgentName(source);
@@ -130,7 +159,7 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
 
     // Run local WASM validation unless skipped
     let localResult: { valid: boolean; issues: any[] } | undefined;
-    if (!flags["skip-local"]) {
+    if (!skipLocal) {
       try {
         const localStart = performance.now();
         const issues: any[] = [];
