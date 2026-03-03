@@ -54,4 +54,71 @@ describe('agency deps', () => {
     expect(Array.isArray(result)).toBe(true);
     expect((result as any[]).length).toBe(2);
   });
+
+  it('renders default table format without error', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent')],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+    expect(r).toHaveProperty('summary');
+  });
+
+  it('runs with --verbose flag', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--verbose'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+  });
+
+  it('filters by type', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--type', 'flows', '--format', 'json'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+  });
+
+  it('returns grouped result with --group dependency', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--group', 'dependency', '--format', 'json'],
+      undefined
+    );
+    expect(Array.isArray(result)).toBe(true);
+    // Each entry has dependency, type, agents
+    for (const entry of result as any[]) {
+      expect(entry).toHaveProperty('dependency');
+      expect(entry).toHaveProperty('type');
+      expect(entry).toHaveProperty('agents');
+      expect(Array.isArray(entry.agents)).toBe(true);
+    }
+  });
+
+  it('grouped result with --group dependency pretty format', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--group', 'dependency'],
+      undefined
+    );
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('each multi-file result has expected shape', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--format', 'json'],
+      undefined
+    );
+    for (const r of result as any[]) {
+      expect(r).toHaveProperty('file');
+      expect(r).toHaveProperty('report');
+      expect(r).toHaveProperty('interfaces');
+      expect(r).toHaveProperty('summary');
+    }
+  });
 });

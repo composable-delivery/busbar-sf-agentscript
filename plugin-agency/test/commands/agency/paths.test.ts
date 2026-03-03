@@ -51,4 +51,52 @@ describe('agency paths', () => {
     expect(Array.isArray(result)).toBe(true);
     expect((result as any[]).length).toBe(2);
   });
+
+  it('renders default pretty format without error', async () => {
+    const result = await AgencyPaths.run(
+      ['--file', path.join(FIXTURES, 'simple.agent')],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('paths');
+    expect(r).toHaveProperty('total_paths');
+  });
+
+  it('runs with --verbose flag showing individual paths', async () => {
+    const result = await AgencyPaths.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--verbose'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(Array.isArray(r.paths)).toBe(true);
+  });
+
+  it('each path entry has expected shape', async () => {
+    const result = await AgencyPaths.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'json'],
+      undefined
+    );
+    const r = result as any;
+    for (const p of r.paths) {
+      expect(p).toHaveProperty('nodes');
+      expect(p).toHaveProperty('edge_types');
+      expect(p).toHaveProperty('has_cycle');
+      expect(Array.isArray(p.nodes)).toBe(true);
+    }
+  });
+
+  it('multi-file results have expected shape', async () => {
+    const result = await AgencyPaths.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--format', 'json'],
+      undefined
+    );
+    for (const r of result as any[]) {
+      expect(r).toHaveProperty('file');
+      expect(r).toHaveProperty('paths');
+      expect(r).toHaveProperty('total_paths');
+      expect(r).toHaveProperty('unreachable');
+    }
+  });
 });

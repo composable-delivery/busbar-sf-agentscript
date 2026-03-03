@@ -1,0 +1,42 @@
+config:
+   agent_name: "RichAgent"
+   agent_label: "Rich Test Agent"
+   description: "An agent with topics and actions for comprehensive testing"
+
+variables:
+   orderId: mutable string = ""
+      description: "The current order ID"
+   orderStatus: mutable string = ""
+      description: "Current order status"
+
+topic main:
+   description: "Main entry topic"
+   actions:
+      CreateOrder:
+         description: "Create a new order"
+         target: "flow://CreateOrderFlow"
+         inputs:
+            customerId: string
+               description: "Customer identifier"
+         outputs:
+            orderId: string
+               description: "Created order ID"
+
+topic order_management:
+   description: "Handles order management tasks"
+   actions:
+      GetOrderStatus:
+         description: "Retrieve the status of an order"
+         target: "flow://GetOrderStatusFlow"
+         inputs:
+            orderId: string
+               description: "Order to look up"
+         outputs:
+            status: string
+               description: "Order status"
+      CancelOrder:
+         description: "Cancel an existing order"
+         target: "apex://OrderService"
+         inputs:
+            orderId: string
+               description: "Order to cancel"

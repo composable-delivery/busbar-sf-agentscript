@@ -116,4 +116,76 @@ describe('agency actions', () => {
       expect(r).toHaveProperty('summary');
     }
   });
+
+  it('extracts flow actions from rich agent', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--format', 'json'],
+      undefined
+    );
+    const r = result as any;
+    expect(Array.isArray(r.actions)).toBe(true);
+    expect(r.actions.length).toBeGreaterThan(0);
+    const flowActions = r.actions.filter((a: any) => a.targetType === 'flow');
+    expect(flowActions.length).toBeGreaterThan(0);
+  });
+
+  it('renders table format with actions (default)', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent')],
+      undefined
+    );
+    const r = result as any;
+    expect(r.actions.length).toBeGreaterThan(0);
+    expect(r.summary.total).toBeGreaterThan(0);
+  });
+
+  it('renders verbose table with action details', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--verbose'],
+      undefined
+    );
+    const r = result as any;
+    expect(r.actions.length).toBeGreaterThan(0);
+  });
+
+  it('renders markdown with real actions', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--format', 'markdown'],
+      undefined
+    );
+    const r = result as any;
+    expect(r.actions.length).toBeGreaterThan(0);
+  });
+
+  it('renders typescript with real actions', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--format', 'typescript'],
+      undefined
+    );
+    const r = result as any;
+    expect(r.actions.length).toBeGreaterThan(0);
+  });
+
+  it('filters by apex target type', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--target', 'apex', '--format', 'json'],
+      undefined
+    );
+    const r = result as any;
+    expect(Array.isArray(r.actions)).toBe(true);
+    for (const action of r.actions) {
+      expect(action.targetType).toBe('apex');
+    }
+  });
+
+  it('summary byTargetType and byLocation are populated', async () => {
+    const result = await AgentscriptActions.run(
+      ['--file', path.join(FIXTURES, 'rich.agent'), '--format', 'json'],
+      undefined
+    );
+    const r = result as any;
+    expect(r.summary.total).toBeGreaterThan(0);
+    expect(Object.keys(r.summary.byTargetType).length).toBeGreaterThan(0);
+    expect(Object.keys(r.summary.byLocation).length).toBeGreaterThan(0);
+  });
 });

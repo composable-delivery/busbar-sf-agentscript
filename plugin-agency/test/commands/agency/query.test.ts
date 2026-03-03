@@ -117,4 +117,102 @@ describe('agency query', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('pretty format display methods', () => {
+    it('renders topic pretty format (no incoming/outgoing)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'simple.agent'), '/topics/nonexistent'],
+        undefined
+      );
+      const r = result as any;
+      expect(r.result.incoming).toHaveLength(0);
+      expect(r.result.outgoing).toHaveLength(0);
+    });
+
+    it('renders topic pretty format with real topic', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), '/topics/main'],
+        undefined
+      );
+      const r = result as any;
+      expect(r.result.topic).toBe('main');
+      expect(Array.isArray(r.result.incoming)).toBe(true);
+      expect(Array.isArray(r.result.outgoing)).toBe(true);
+    });
+
+    it('renders variable pretty format (no readers/writers)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'simple.agent'), '/variables/greeting'],
+        undefined
+      );
+      const r = result as any;
+      expect(r.result.variable).toBe('greeting');
+    });
+
+    it('renders variable pretty format with real variable', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), '/variables/orderId'],
+        undefined
+      );
+      const r = result as any;
+      expect(r.result.variable).toBe('orderId');
+      expect(Array.isArray(r.result.readers)).toBe(true);
+      expect(Array.isArray(r.result.writers)).toBe(true);
+    });
+
+    it('renders action pretty format (displayAction path)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), '/actions/CreateOrder'],
+        undefined
+      );
+      const r = result as any;
+      expect(r.result.action).toBe('CreateOrder');
+      expect(r.result).toHaveProperty('target');
+      expect(r.result).toHaveProperty('invocations');
+    });
+
+    it('renders AST result in pretty format (spanned object - config)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'simple.agent'), 'config'],
+        undefined
+      );
+      expect(result).toHaveProperty('result');
+    });
+
+    it('renders AST result in pretty format (slash path)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'simple.agent'), '/config'],
+        undefined
+      );
+      expect(result).toHaveProperty('result');
+    });
+
+    it('renders AST result in pretty format (array - topics)', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), 'topics'],
+        undefined
+      );
+      const r = result as any;
+      expect(r).toHaveProperty('result');
+      expect(Array.isArray(r.result)).toBe(true);
+      expect(r.result.length).toBeGreaterThan(0);
+    });
+
+    it('renders AST result with array index traversal', async () => {
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), 'topics.0'],
+        undefined
+      );
+      expect(result).toHaveProperty('result');
+    });
+
+    it('renders AST result in pretty format (plain object - topic inner node)', async () => {
+      // topics.0.node returns the inner topic object (no node+span wrapper) → plain object branch
+      const result = await AgentscriptQuery.run(
+        ['--file', path.join(FIXTURES, 'rich.agent'), 'topics.0.node'],
+        undefined
+      );
+      expect(result).toHaveProperty('result');
+    });
+  });
 });
