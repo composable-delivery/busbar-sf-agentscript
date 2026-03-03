@@ -170,16 +170,11 @@ jobs:
             }, null, 2));
           "
       - name: Install plugin dependencies
-        working-directory: plugin-agency/
         run: |
-          # Install from the locally built WASM package (not yet on npm)
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
-            pkg.dependencies['@muselab/busbar-sf-agentscript'] = 'file:../pkg';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-          "
-          npm install
+          # Link the locally built WASM into npm's global registry so
+          # plugin-agency can install it by name+version without modifying package.json
+          cd pkg && npm link
+          cd plugin-agency && npm link @muselab/busbar-sf-agentscript && npm install
       - name: Build SF plugin
         working-directory: plugin-agency/
         run: npm run build
