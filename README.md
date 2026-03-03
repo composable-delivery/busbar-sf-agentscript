@@ -28,8 +28,10 @@ Choose the option that fits your workflow:
 Install with the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli):
 
 ```sh
-sf plugins install sf-plugin-busbar-agency
+sf plugins install @muselab/sf-plugin-busbar-agency
 ```
+
+![SF plugin commands overview](docs/images/sf-plugin-commands.png)
 
 Validate an AgentScript file:
 
@@ -37,11 +39,16 @@ Validate an AgentScript file:
 sf agency validate --file my-agent.agent
 ```
 
+![Validation output](docs/images/sf-plugin-validate.png)
+
 Export the topic reference graph:
 
 ```sh
 sf agency graph --file my-agent.agent --format graphml --output graph.xml
+sf agency graph --file my-agent.agent --format html --output report.html
 ```
+
+![Interactive HTML graph report](docs/images/sf-plugin-graph.png)
 
 Extract action interface definitions:
 
@@ -73,7 +80,6 @@ code --install-extension vscode-agentscript-<version>.vsix
 - Hover documentation
 - Semantic token highlighting
 - Topic graph visualization (`AgentScript: Show Topic Graph`)
-- Agent simulation (`AgentScript: Simulate Agent`)
 - AgentScript Dependencies panel in the Explorer sidebar
 
 **Settings:**
@@ -97,9 +103,7 @@ Download the pre-built binary for your platform from [GitHub Releases](https://g
 | Platform | Binary |
 |---|---|
 | macOS (Apple Silicon) | `busbar-sf-agentscript-lsp-aarch64-apple-darwin` |
-| macOS (Intel) | `busbar-sf-agentscript-lsp-x86_64-apple-darwin` |
 | Linux x86\_64 | `busbar-sf-agentscript-lsp-x86_64-unknown-linux-gnu` |
-| Linux aarch64 | `busbar-sf-agentscript-lsp-aarch64-unknown-linux-gnu` |
 | Windows x86\_64 | `busbar-sf-agentscript-lsp-x86_64-pc-windows-msvc.exe` |
 
 Or install from source:

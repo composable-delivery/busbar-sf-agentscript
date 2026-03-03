@@ -73,6 +73,18 @@ pub enum ValidationError {
         /// Source location where it's read
         read_span: Span,
     },
+
+    /// Property access (dot notation) on a non-object variable
+    InvalidPropertyAccess {
+        /// The full reference (e.g., "@variables.count.foo")
+        reference: String,
+        /// The variable name
+        variable: String,
+        /// The declared type of the variable
+        variable_type: String,
+        /// Source location of the reference
+        span: Span,
+    },
 }
 
 impl ValidationError {
@@ -83,6 +95,7 @@ impl ValidationError {
             | ValidationError::UnreachableTopic { span, .. }
             | ValidationError::UnusedActionDef { span, .. }
             | ValidationError::UnusedVariable { span, .. }
+            | ValidationError::InvalidPropertyAccess { span, .. }
             | ValidationError::UninitializedVariable {
                 read_span: span, ..
             } => Some(*span),
@@ -112,6 +125,17 @@ impl ValidationError {
             }
             ValidationError::UninitializedVariable { name, .. } => {
                 format!("Variable '{}' is read but never written", name)
+            }
+            ValidationError::InvalidPropertyAccess {
+                reference,
+                variable,
+                variable_type,
+                ..
+            } => {
+                format!(
+                    "Property access on '{}' is invalid: variable '{}' has type '{}', only 'object' supports property access",
+                    reference, variable, variable_type
+                )
             }
         }
     }

@@ -402,95 +402,82 @@ pub fn lexer<'src>(
         .to_slice()
         .map(Token::UnicodeText);
 
-    // Block keywords
-    let block_keywords = choice((
-        text::keyword("config").to(Token::Config),
-        text::keyword("variables").to(Token::Variables),
-        text::keyword("system").to(Token::System),
-        text::keyword("start_agent").to(Token::StartAgent),
-        text::keyword("topic").to(Token::Topic),
-        text::keyword("actions").to(Token::Actions),
-        text::keyword("inputs").to(Token::Inputs),
-        text::keyword("outputs").to(Token::Outputs),
-        text::keyword("target").to(Token::Target),
-        text::keyword("reasoning").to(Token::Reasoning),
-        text::keyword("instructions").to(Token::Instructions),
-        text::keyword("before_reasoning").to(Token::BeforeReasoning),
-        text::keyword("after_reasoning").to(Token::AfterReasoning),
-        text::keyword("messages").to(Token::Messages),
-    ));
-
-    // More keywords
-    let more_keywords = choice((
-        text::keyword("welcome").to(Token::Welcome),
-        text::keyword("error").to(Token::Error),
-        text::keyword("connection").to(Token::Connection),
-        text::keyword("connections").to(Token::Connections),
-        text::keyword("knowledge").to(Token::Knowledge),
-        text::keyword("language").to(Token::Language),
-        text::keyword("mutable").to(Token::Mutable),
-        text::keyword("linked").to(Token::Linked),
-        text::keyword("description").to(Token::Description),
-        text::keyword("source").to(Token::Source),
-        text::keyword("label").to(Token::Label),
-        text::keyword("is_required").to(Token::IsRequired),
-        text::keyword("is_displayable").to(Token::IsDisplayable),
-        text::keyword("is_used_by_planner").to(Token::IsUsedByPlanner),
-        text::keyword("complex_data_type_name").to(Token::ComplexDataTypeName),
-        text::keyword("filter_from_agent").to(Token::FilterFromAgent),
-        text::keyword("require_user_confirmation").to(Token::RequireUserConfirmation),
-        text::keyword("include_in_progress_indicator").to(Token::IncludeInProgressIndicator),
-        text::keyword("progress_indicator_message").to(Token::ProgressIndicatorMessage),
-    ));
-
-    // Type keywords
-    let type_keywords = choice((
-        text::keyword("string").to(Token::String),
-        text::keyword("number").to(Token::Number),
-        text::keyword("boolean").to(Token::Boolean),
-        text::keyword("object").to(Token::Object),
-        text::keyword("list").to(Token::List),
-        text::keyword("date").to(Token::Date),
-        text::keyword("timestamp").to(Token::Timestamp),
-        text::keyword("currency").to(Token::Currency),
-        text::keyword("datetime").to(Token::Datetime),
-        text::keyword("time").to(Token::Time),
-        text::keyword("integer").to(Token::Integer),
-        text::keyword("long").to(Token::Long),
-        text::keyword("id").to(Token::Id),
-    ));
-
-    // Statement keywords
-    let stmt_keywords = choice((
-        text::keyword("if").to(Token::If),
-        text::keyword("else").to(Token::Else),
-        text::keyword("run").to(Token::Run),
-        text::keyword("with").to(Token::With),
-        text::keyword("set").to(Token::Set),
-        text::keyword("to").to(Token::To),
-        text::keyword("as").to(Token::As),
-        text::keyword("transition").to(Token::Transition),
-        text::keyword("available").to(Token::Available),
-        text::keyword("when").to(Token::When),
-    ));
-
-    // Literal and operator keywords
-    let lit_op_keywords = choice((
-        text::keyword("True").to(Token::True),
-        text::keyword("False").to(Token::False),
-        text::keyword("None").to(Token::None),
-        text::keyword("is").to(Token::Is),
-        text::keyword("not").to(Token::Not),
-        text::keyword("and").to(Token::And),
-        text::keyword("or").to(Token::Or),
-    ));
-
-    // Combine all keywords
-    let keyword =
-        choice((block_keywords, more_keywords, type_keywords, stmt_keywords, lit_op_keywords));
-
-    // Identifier: starts with letter or underscore, followed by alphanumeric or underscore
-    let ident = text::ident().map(Token::Ident);
+    // Lex identifiers and keywords in a single pass: parse as ident, then do
+    // a constant-time match to check if it's a keyword. This replaces 63
+    // individual text::keyword() calls that caused O(keywords) backtracking
+    // per identifier token.
+    let ident_or_keyword = text::ident().map(|s: &str| match s {
+        // Block keywords
+        "config" => Token::Config,
+        "variables" => Token::Variables,
+        "system" => Token::System,
+        "start_agent" => Token::StartAgent,
+        "topic" => Token::Topic,
+        "actions" => Token::Actions,
+        "inputs" => Token::Inputs,
+        "outputs" => Token::Outputs,
+        "target" => Token::Target,
+        "reasoning" => Token::Reasoning,
+        "instructions" => Token::Instructions,
+        "before_reasoning" => Token::BeforeReasoning,
+        "after_reasoning" => Token::AfterReasoning,
+        "messages" => Token::Messages,
+        // More keywords
+        "welcome" => Token::Welcome,
+        "error" => Token::Error,
+        "connection" => Token::Connection,
+        "connections" => Token::Connections,
+        "knowledge" => Token::Knowledge,
+        "language" => Token::Language,
+        "mutable" => Token::Mutable,
+        "linked" => Token::Linked,
+        "description" => Token::Description,
+        "source" => Token::Source,
+        "label" => Token::Label,
+        "is_required" => Token::IsRequired,
+        "is_displayable" => Token::IsDisplayable,
+        "is_used_by_planner" => Token::IsUsedByPlanner,
+        "complex_data_type_name" => Token::ComplexDataTypeName,
+        "filter_from_agent" => Token::FilterFromAgent,
+        "require_user_confirmation" => Token::RequireUserConfirmation,
+        "include_in_progress_indicator" => Token::IncludeInProgressIndicator,
+        "progress_indicator_message" => Token::ProgressIndicatorMessage,
+        // Type keywords
+        "string" => Token::String,
+        "number" => Token::Number,
+        "boolean" => Token::Boolean,
+        "object" => Token::Object,
+        "list" => Token::List,
+        "date" => Token::Date,
+        "timestamp" => Token::Timestamp,
+        "currency" => Token::Currency,
+        "datetime" => Token::Datetime,
+        "time" => Token::Time,
+        "integer" => Token::Integer,
+        "long" => Token::Long,
+        "id" => Token::Id,
+        // Statement keywords
+        "if" => Token::If,
+        "else" => Token::Else,
+        "run" => Token::Run,
+        "with" => Token::With,
+        "set" => Token::Set,
+        "to" => Token::To,
+        "as" => Token::As,
+        "transition" => Token::Transition,
+        "available" => Token::Available,
+        "when" => Token::When,
+        // Literal and operator keywords
+        "True" => Token::True,
+        "False" => Token::False,
+        "None" => Token::None,
+        "is" => Token::Is,
+        "not" => Token::Not,
+        "and" => Token::And,
+        "or" => Token::Or,
+        // Not a keyword — regular identifier
+        _ => Token::Ident(s),
+    });
 
     // Newline
     let newline = just('\n').to(Token::Newline);
@@ -504,8 +491,7 @@ pub fn lexer<'src>(
         single_char_ops,
         text_punctuation,
         unicode_text,
-        keyword,
-        ident,
+        ident_or_keyword,
         newline,
     ));
 
@@ -544,14 +530,13 @@ pub fn add_indentation_tokens<'src>(
         })
         .collect();
 
-    // Helper to find indentation at a given position
+    // Helper to find indentation at a given position (binary search on sorted line_indents)
     let get_indent_at = |pos: usize| -> usize {
-        for (line_start, indent) in line_indents.iter().rev() {
-            if pos >= *line_start {
-                return *indent;
-            }
+        match line_indents.binary_search_by_key(&pos, |&(start, _)| start) {
+            Ok(i) => line_indents[i].1,
+            Err(0) => 0,
+            Err(i) => line_indents[i - 1].1,
         }
-        0
     };
 
     let mut i = 0;

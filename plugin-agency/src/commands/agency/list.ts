@@ -4,19 +4,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ansis from 'ansis';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from 'busbar-sf-agentscript';
+import * as parser from '../../wasm-loader.js';
+import { resolveTargetFiles } from '../../lib/agent-files.js';
 
-// After bundling, __dirname is lib/commands/agentscript-parser/ - go up 3 levels to plugin root
-const pluginRoot = path.resolve(__dirname, '..', '..', '..');
-Messages.importMessagesDirectory(pluginRoot);
-const messages = Messages.loadMessages('sf-plugin-busbar-agency', 'agency.list');
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@muselab/sf-plugin-busbar-agency', 'agency.list');
 
 interface ListResult {
+  file: string;
   type: string;
   items: string[];
 }
 
-export default class AgentscriptList extends SfCommand<ListResult> {
+export default class AgentscriptList extends SfCommand<ListResult | ListResult[]> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -26,8 +26,13 @@ export default class AgentscriptList extends SfCommand<ListResult> {
       char: 'f',
       summary: messages.getMessage('flags.file.summary'),
       description: messages.getMessage('flags.file.description'),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     type: Flags.option({
       char: 't',
@@ -45,31 +50,67 @@ export default class AgentscriptList extends SfCommand<ListResult> {
     })(),
   };
 
-  public async run(): Promise<ListResult> {
+  public async run(): Promise<ListResult | ListResult[]> {
     const { flags } = await this.parse(AgentscriptList);
 
-    try {
-      // Read and parse the AgentScript file
-      const filePath = path.resolve(flags.file as string);
-      const source = fs.readFileSync(filePath, 'utf-8');
-      const ast = parser.parse_agent(source);
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      // List the requested type
-      const items = this.listItems(ast, flags.type);
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
+        }
+      })
+    );
 
-      if (flags.format === 'json') {
-        this.log(JSON.stringify({ type: flags.type, items }, null, 2));
-      } else {
-        this.displayPretty(flags.type, items);
+    const results: ListResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
+
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
       }
 
-      return { type: flags.type, items };
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.listFailure', [error.message]);
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
       }
-      throw error;
+
+      try {
+        const ast = parser.parse_agent(fileRead.source);
+        const items = this.listItems(ast, flags.type);
+
+        if (flags.format === 'json') {
+          this.log(JSON.stringify({ file, type: flags.type, items }, null, 2));
+        } else {
+          this.displayPretty(flags.type, items);
+        }
+
+        results.push({ file, type: flags.type, items });
+      } catch (e) {
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
+      }
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
   private listItems(ast: any, type: string): string[] {

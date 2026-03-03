@@ -1,0 +1,124 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { initWasm } from '../../helpers/wasm-init.js';
+import AgentscriptDeps from '../../../src/commands/agency/deps.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FIXTURES = path.resolve(__dirname, 'fixtures');
+
+describe('agency deps', () => {
+  beforeAll(async () => initWasm());
+
+  it('has correct metadata', () => {
+    expect(AgentscriptDeps.summary).toBeTypeOf('string');
+    expect(AgentscriptDeps.flags).toHaveProperty('file');
+    expect(AgentscriptDeps.flags).toHaveProperty('format');
+    expect(AgentscriptDeps.flags).toHaveProperty('type');
+    expect(AgentscriptDeps.flags).toHaveProperty('retrieve');
+    expect(AgentscriptDeps.flags).toHaveProperty('path');
+  });
+
+  it('--file is optional', () => {
+    expect(AgentscriptDeps.flags.file.required).toBeFalsy();
+  });
+
+  it('extracts dependencies from simple agent', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'json'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+    expect(r).toHaveProperty('interfaces');
+    expect(r).toHaveProperty('summary');
+  });
+
+  it('returns summary format', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'summary'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r.summary).toHaveProperty('total');
+    expect(r.summary).toHaveProperty('by_category');
+  });
+
+  it('returns multiple results when scanning directory', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--format', 'json'],
+      undefined
+    );
+    expect(Array.isArray(result)).toBe(true);
+    expect((result as any[]).length).toBe(2);
+  });
+
+  it('renders default table format without error', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent')],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+    expect(r).toHaveProperty('summary');
+  });
+
+  it('runs with --verbose flag', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--verbose'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+  });
+
+  it('filters by type', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--type', 'flows', '--format', 'json'],
+      undefined
+    );
+    expect(result).toBeTruthy();
+    const r = result as any;
+    expect(r).toHaveProperty('report');
+  });
+
+  it('returns grouped result with --group dependency', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--group', 'dependency', '--format', 'json'],
+      undefined
+    );
+    expect(Array.isArray(result)).toBe(true);
+    // Each entry has dependency, type, agents
+    for (const entry of result as any[]) {
+      expect(entry).toHaveProperty('dependency');
+      expect(entry).toHaveProperty('type');
+      expect(entry).toHaveProperty('agents');
+      expect(Array.isArray(entry.agents)).toBe(true);
+    }
+  });
+
+  it('grouped result with --group dependency pretty format', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--group', 'dependency'],
+      undefined
+    );
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('each multi-file result has expected shape', async () => {
+    const result = await AgentscriptDeps.run(
+      ['--path', path.join(FIXTURES, 'agents-dir'), '--format', 'json'],
+      undefined
+    );
+    for (const r of result as any[]) {
+      expect(r).toHaveProperty('file');
+      expect(r).toHaveProperty('report');
+      expect(r).toHaveProperty('interfaces');
+      expect(r).toHaveProperty('summary');
+    }
+  });
+});

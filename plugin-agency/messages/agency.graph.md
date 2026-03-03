@@ -13,6 +13,9 @@ Parses an AgentScript file and renders its execution flow as a graph. By default
 - Show full graph with all nodes: `sf aslab graph -f agent.agent --view full`
 - Export as GraphML for external visualization: `sf aslab graph -f agent.agent --format graphml`
 - Export GraphML to a file: `sf aslab graph -f agent.agent --format graphml > agent-graph.graphml`
+- Export as Mermaid diagram (pipe-friendly): `sf aslab graph -f agent.agent --format mermaid > graph.md`
+- Export as self-contained HTML page: `sf aslab graph -f agent.agent --format html > graph.html`
+- Show graph with statistics: `sf aslab graph -f agent.agent --stats`
 
 # flags.file.summary
 
@@ -32,11 +35,19 @@ Controls what level of detail to show. Use 'topics' for high-level topic transit
 
 # flags.format.summary
 
-Output format (ascii or graphml).
+Output format (ascii, graphml, mermaid, or html).
 
 # flags.format.description
 
-Output format for the graph. Use 'ascii' for colored terminal output, or 'graphml' for XML export compatible with yEd, Gephi, Cytoscape, and other graph visualization tools.
+Output format for the graph. Use 'ascii' for colored terminal output, 'graphml' for XML export, 'mermaid' for Mermaid flowchart syntax (pipe to a .md file), or 'html' for a self-contained HTML page with embedded Mermaid diagram.
+
+# flags.stats.summary
+
+Show graph statistics after rendering.
+
+# flags.stats.description
+
+Display a summary of graph statistics (node counts, edge counts, topic count, etc.) after the main output.
 
 # error.graphFailure
 

@@ -1,298 +1,300 @@
-# sf-plugin-busbar-agency
+# @muselab/sf-plugin-busbar-agency
 
-Salesforce CLI plugin for parsing and validating AgentScript files using WebAssembly.
-
-## Overview
-
-This plugin provides commands to work with Salesforce AgentScript files. It uses a high-performance WASM-based parser to parse, validate, and analyze AgentScript code directly from the Salesforce CLI.
-
-## Features
-
-- 🚀 **Fast WASM-based parsing** - Built with Rust for maximum performance
-- ✅ **Syntax validation** - Quickly validate AgentScript files
-- 🔍 **AST inspection** - View and query the Abstract Syntax Tree
-- 📋 **Element listing** - List topics, variables, actions, and messages
-- 🔎 **AST queries** - Extract specific parts of the AST using path notation
-- 🛠️ **SF CLI integration** - Works seamlessly with the Salesforce CLI
+A Salesforce CLI plugin for parsing, validating, and analyzing AgentScript files. Powered by a Rust/WebAssembly parser for fast, portable execution.
 
 ## Installation
 
-### Install as SF CLI Plugin
-
 ```bash
-sf plugins install sf-plugin-busbar-agency
+sf plugins install @muselab/sf-plugin-busbar-agency
 ```
 
-### Development Installation
+Requires Salesforce CLI (`sf`) v2+.
 
-From the plugin directory:
-
-```bash
-npm install
-npm run build
-sf plugins link .
-```
+---
 
 ## Commands
 
-### `sf agency parse`
+All commands support `--file` (target a single `.agent` file) or `--path` (scan a directory recursively, default: `.`). You can also save a persistent selection with `sf agency agents select` and subsequent commands will use it automatically.
 
-Parse an AgentScript file and output its Abstract Syntax Tree (AST).
+When running against multiple files, JSON output includes a `file` field on each result so you can identify which file each result came from.
 
-**Usage:**
+### Agent Management
 
-```bash
-sf agency parse --file <path-to-agent-file>
-```
+#### `sf agency agents list`
 
-**Flags:**
-
-- `-f, --file <path>` (required) - Path to the AgentScript file to parse
-- `-o, --format <format>` - Output format: `pretty` (default) or `json`
-
-**Examples:**
+List all `.agent` files in a directory along with their parsed names and selection status.
 
 ```bash
-# Parse and display pretty output
-sf agency parse --file path/to/MyAgent.agent
-
-# Parse and output JSON
-sf agency parse --file path/to/MyAgent.agent --format json
+sf agency agents list --path ./agents
 ```
 
-### `sf agency validate`
+#### `sf agency agents select`
 
-Validate an AgentScript file for syntax errors.
-
-**Usage:**
+Interactively select which agent files subsequent commands should target.
 
 ```bash
-sf agency validate --file <path-to-agent-file>
+# Interactive checkbox (TTY only)
+sf agency agents select --path ./agents
+
+# Select all agents
+sf agency agents select --path ./agents --all
+
+# Clear selection (revert to directory scan)
+sf agency agents select --none
 ```
 
-**Flags:**
+Selection is saved to the plugin's data directory and used automatically by all other commands until cleared.
 
-- `-f, --file <path>` (required) - Path to the AgentScript file to validate
+---
 
-**Examples:**
+### Parsing & Inspection
+
+#### `sf agency parse`
+
+Parse an AgentScript file and display its AST structure.
 
 ```bash
-sf agency validate --file path/to/MyAgent.agent
+sf agency parse --file MyAgent.agent
+sf agency parse --file MyAgent.agent --format json
+sf agency parse --path ./agents
 ```
 
-### `sf agency validate platform`
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-o, --format` | `pretty` (default) or `json` |
 
-Validate an AgentScript file against the Salesforce platform.
+---
 
-**Usage:**
+#### `sf agency list`
+
+List specific elements from an AgentScript file.
 
 ```bash
-sf agency validate platform --file <path-to-agent-file>
+sf agency list --file MyAgent.agent --type topics
+sf agency list --path ./agents --type actions --format json
 ```
 
-### `sf agency version`
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-t, --type` | `topics`, `variables`, `actions`, or `messages` (required) |
+| `-o, --format` | `pretty` (default) or `json` |
 
-Display the version of the AgentScript parser.
+---
 
-**Usage:**
+#### `sf agency query <path>`
+
+Query topics, variables, actions, or raw AST elements using a path-based syntax.
+
+```bash
+# Semantic queries — returns structured data
+sf agency query /topics/fraud_review --file MyAgent.agent
+sf agency query /variables/accountId --file MyAgent.agent
+sf agency query /actions/checkCredit --file MyAgent.agent
+
+# Raw AST traversal — dot-notation
+sf agency query config.agent_name --file MyAgent.agent --format json
+
+# Across all agents in a directory
+sf agency query /topics/fraud_review --path ./agents
+```
+
+**Semantic path formats:**
+
+| Path | Returns |
+|------|---------|
+| `/topics/<name>` | Incoming references and outgoing transitions |
+| `/variables/<name>` | All readers and writers |
+| `/actions/<name>` | Action definition and reasoning steps that invoke it |
+| `dot.notation.path` | Raw AST value at that path |
+
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-o, --format` | `pretty` (default) or `json` |
+
+---
+
+### Visualization
+
+#### `sf agency graph`
+
+Visualize the topic flow graph.
+
+```bash
+sf agency graph --file MyAgent.agent
+sf agency graph --file MyAgent.agent --format mermaid
+sf agency graph --file MyAgent.agent --format html > graph.html
+sf agency graph --path ./agents --stats
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-v, --view` | `topics` (default), `actions`, or `full` |
+| `--format` | `ascii` (default), `graphml`, `mermaid`, or `html` |
+| `--stats` | Print topic/variable/action counts |
+
+---
+
+#### `sf agency paths`
+
+Enumerate all execution paths through the agent's topic graph, detecting cycles.
+
+```bash
+sf agency paths --file MyAgent.agent
+sf agency paths --path ./agents --format json
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `--format` | `pretty` (default) or `json` |
+| `--max-depth` | Maximum path depth (default: 20) |
+
+---
+
+### Dependency Analysis
+
+#### `sf agency deps`
+
+Extract Salesforce org dependencies: SObjects, Flows, Apex classes, Knowledge bases, Connections, Prompt Templates, and External Services.
+
+```bash
+# Per-file dependency table
+sf agency deps --file MyAgent.agent
+
+# See which agents share each dependency
+sf agency deps --path ./agents --group dependency
+
+# Filter and format
+sf agency deps --file MyAgent.agent --type flows --format json
+
+# Retrieve dependent metadata from an org
+sf agency deps --file MyAgent.agent --retrieve --target-org myOrg
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-o, --format` | `table` (default), `json`, or `summary` |
+| `-t, --type` | `all`, `sobjects`, `flows`, `apex`, `knowledge`, or `connections` |
+| `--group` | `file` (default) or `dependency` — group by file or by dependency |
+| `--retrieve` | Retrieve dependent metadata from the target org |
+| `--target-org` | Org alias/username for `--retrieve` |
+
+**`--group dependency` output:**
+
+```
+Flows (2)
+  ▸ CreditCheckFlow
+      • agents/billing.agent
+      • agents/collections.agent
+  ▸ OnboardingFlow
+      • agents/onboarding.agent
+```
+
+---
+
+#### `sf agency impact`
+
+Scan a directory for agents that depend on a specific Salesforce resource.
+
+```bash
+sf agency impact --resource MyFlow__c --type flow --path ./agents
+sf agency impact --resource Account --type sobject --path ./agents
+```
+
+| Flag | Description |
+|------|-------------|
+| `--path` | Directory to scan (default: `.`) |
+| `--resource` | Resource name to search for (required) |
+| `--type` | `flow`, `apex`, `sobject`, `knowledge`, or `any` (required) |
+
+---
+
+#### `sf agency actions`
+
+Extract action interface definitions in multiple formats, useful for generating TypeScript types or API documentation.
+
+```bash
+sf agency actions --file MyAgent.agent
+sf agency actions --file MyAgent.agent --format typescript
+sf agency actions --file MyAgent.agent --format markdown
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f, --file` | Path to a single `.agent` file |
+| `--path` | Directory to scan (default: `.`) |
+| `-o, --format` | `table` (default), `json`, `typescript`, or `markdown` |
+| `-t, --target` | `all`, `flow`, `apex`, or `prompt` |
+
+---
+
+### Validation
+
+#### `sf agency validate`
+
+Validate an AgentScript file for syntax and semantic errors.
+
+```bash
+sf agency validate --file MyAgent.agent
+sf agency validate --path ./agents
+```
+
+Exit code is `1` if any errors are found.
+
+---
+
+#### `sf agency validate platform`
+
+Validate an AgentScript file against the Salesforce platform (requires org connection).
+
+```bash
+sf agency validate platform --file MyAgent.agent --target-org myOrg
+```
+
+---
+
+#### `sf agency version`
+
+Display the AgentScript parser version.
 
 ```bash
 sf agency version
 ```
 
-### `sf agency list`
+---
 
-List specific elements from an AgentScript file.
+## JSON Output
 
-**Usage:**
+All commands accept oclif's `--json` flag for machine-readable output. In multi-file mode, each item in the returned array includes a `file` field:
 
-```bash
-sf agency list --file <path-to-agent-file> --type <element-type>
+```json
+[
+  {
+    "file": "agents/billing.agent",
+    "report": { ... },
+    "summary": { ... }
+  },
+  {
+    "file": "agents/collections.agent",
+    "report": { ... },
+    "summary": { ... }
+  }
+]
 ```
 
-**Flags:**
-
-- `-f, --file <path>` (required) - Path to the AgentScript file
-- `-t, --type <type>` (required) - Type of elements to list: `topics`, `variables`, `actions`, or `messages`
-- `-o, --format <format>` - Output format: `pretty` (default) or `json`
-
-**Examples:**
-
-```bash
-# List all topics
-sf agency list --file path/to/MyAgent.agent --type topics
-
-# List all variables
-sf agency list --file path/to/MyAgent.agent --type variables
-
-# List actions in JSON format
-sf agency list --file path/to/MyAgent.agent --type actions --format json
-```
-
-### `sf agency query`
-
-Query and extract specific parts of the AST using dot-notation paths.
-
-**Usage:**
-
-```bash
-sf agency query --file <path-to-agent-file> --path <ast-path>
-```
-
-**Flags:**
-
-- `-f, --file <path>` (required) - Path to the AgentScript file
-- `-p, --path <path>` (required) - Dot-notation path to the AST element (e.g., `config.agent_name`)
-- `-o, --format <format>` - Output format: `pretty` (default) or `json`
-
-**Examples:**
-
-```bash
-# Query the agent name
-sf agency query --file path/to/MyAgent.agent --path config.agent_name
-
-# Query all topics
-sf agency query --file path/to/MyAgent.agent --path topics
-```
-
-### `sf agency actions`
-
-Extract action interface definitions from an AgentScript file.
-
-**Usage:**
-
-```bash
-sf agency actions --file <path-to-agent-file>
-```
-
-**Flags:**
-
-- `-f, --file <path>` (required) - Path to the AgentScript file
-- `--format <format>` - Output format: `table` (default), `json`, `typescript`, or `markdown`
-- `--target <type>` - Filter by target type: `all`, `flow`, `apex`, or `prompt`
-
-**Examples:**
-
-```bash
-sf agency actions --file path/to/MyAgent.agent
-sf agency actions --file path/to/MyAgent.agent --format typescript
-```
-
-### `sf agency graph`
-
-Export the topic reference graph.
-
-**Usage:**
-
-```bash
-sf agency graph --file <path-to-agent-file>
-```
-
-### `sf agency deps`
-
-Extract Salesforce org dependencies from an AgentScript file.
-
-**Usage:**
-
-```bash
-sf agency deps --file <path-to-agent-file>
-```
-
-## AgentScript Language
-
-AgentScript is Salesforce's language for defining AI agent behavior. It features:
-
-- YAML-like indentation-based syntax
-- Configuration blocks for agent metadata
-- Variable declarations with type safety
-- System instructions and messages
-- Topic-based conversation flow
-- Action definitions with reasoning
-
-Example AgentScript file:
-
-```agentscript
-config:
-   agent_name: "HelloWorld"
-   agent_version: "1.0"
-
-variables:
-   greeting: mutable string = "Hello"
-
-system:
-   messages:
-      welcome: "Welcome to the agent!"
-   instructions: "Be helpful and friendly."
-
-start_agent topic_selector:
-   description: "Entry point"
-   reasoning:
-      actions:
-         start: @utils.transition to @topic.main
-
-topic main:
-   description: "Main conversation topic"
-   reasoning:
-      instructions:|
-         Greet the user warmly.
-```
-
-## Development
-
-### Build
-
-```bash
-npm run build
-```
-
-### Clean
-
-```bash
-npm run clean
-```
-
-## Technical Details
-
-### WASM Parser
-
-This plugin uses a Rust-based parser compiled to WebAssembly for:
-
-- **Performance**: Native-speed parsing in Node.js
-- **Portability**: Works across all platforms without native dependencies
-- **Safety**: Memory-safe Rust implementation
-- **Maintainability**: Shared parser logic with other tools
-
-### Architecture
-
-```
-plugin-agency/
-├── src/
-│   ├── commands/
-│   │   └── agency/
-│   │       ├── parse.ts           # sf agency parse
-│   │       ├── validate.ts        # sf agency validate
-│   │       ├── validate/
-│   │       │   └── platform.ts    # sf agency validate platform
-│   │       ├── actions.ts         # sf agency actions
-│   │       ├── deps.ts            # sf agency deps
-│   │       ├── graph.ts           # sf agency graph
-│   │       ├── list.ts            # sf agency list
-│   │       ├── query.ts           # sf agency query
-│   │       └── version.ts         # sf agency version
-│   └── index.ts
-├── messages/                      # Command help messages
-├── lib/                           # Compiled JavaScript (generated)
-└── package.json
-```
+---
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please see the main repository at [composable-delivery/busbar-sf-agentscript](https://github.com/composable-delivery/busbar-sf-agentscript).
-
-## Support
-
-For issues and questions, please file an issue on the [GitHub repository](https://github.com/composable-delivery/busbar-sf-agentscript/issues).

@@ -558,6 +558,88 @@ topic topic_c:
     }
 
     #[test]
+    fn test_invalid_property_access_on_non_object_variable() {
+        // Accessing a property on a number variable should produce an
+        // InvalidPropertyAccess error.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   count: mutable number = 0
+      description: "A counter"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions:->
+         | Value: {!@variables.count.value}
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         stay: @utils.transition to @topic.main
+            description: "Stay"
+"#;
+        let graph = parse_and_build(source);
+        let result = graph.validate();
+        let invalid_access: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|e| matches!(e, ValidationError::InvalidPropertyAccess { .. }))
+            .collect();
+        assert!(
+            !invalid_access.is_empty(),
+            "Expected InvalidPropertyAccess for @variables.count.value on number type"
+        );
+    }
+
+    #[test]
+    fn test_valid_property_access_on_object_variable() {
+        // Accessing a property on an object variable should NOT produce errors.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   stats: mutable object = {}
+      description: "Stats"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions:->
+         | Total: {!@variables.stats.total}
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         stay: @utils.transition to @topic.main
+            description: "Stay"
+"#;
+        let graph = parse_and_build(source);
+        let result = graph.validate();
+        let invalid_access: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|e| matches!(e, ValidationError::InvalidPropertyAccess { .. }))
+            .collect();
+        assert!(
+            invalid_access.is_empty(),
+            "Expected no InvalidPropertyAccess for @variables.stats.total on object type, got: {:?}",
+            invalid_access
+        );
+    }
+
+    #[test]
     fn test_unresolved_variable_reference_detected() {
         // A reasoning action binds @variables.nonexistent_var which is never declared
         // in the variables block.  The unresolved reference should surface as an error.

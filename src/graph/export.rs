@@ -191,6 +191,7 @@ impl From<&ValidationError> for ValidationErrorRepr {
                 ValidationError::UnusedActionDef { .. } => "unused_action_def",
                 ValidationError::UnusedVariable { .. } => "unused_variable",
                 ValidationError::UninitializedVariable { .. } => "uninitialized_variable",
+                ValidationError::InvalidPropertyAccess { .. } => "invalid_property_access",
             }
             .to_string(),
             message: error.message(),

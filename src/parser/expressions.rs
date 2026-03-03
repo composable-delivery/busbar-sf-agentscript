@@ -4,6 +4,8 @@
 //! type specifications (string, number, list[T], etc.), and
 //! expressions with operators.
 
+use indexmap::IndexMap;
+
 use crate::ast::{BinOp, Expr, Reference, Spanned, Type, UnaryOp};
 use crate::lexer::Token;
 use chumsky::prelude::*;
@@ -130,9 +132,13 @@ pub fn expr<'tokens, 'src: 'tokens>() -> impl Parser<
     extra::Err<Rich<'tokens, Token<'src>, Span>>,
 > + Clone {
     recursive(|expr| {
+        // Object literal key: identifier or string
+        let object_key = choice((
+            select! { Token::Ident(s) => s.to_string() },
+            string_lit().map(|s| s.to_string()),
+        ));
+
         // Atomic expressions (highest precedence)
-        // NOTE: Salesforce AgentScript does NOT support inline object literals like {} or {key: value}
-        // Use None for empty objects and proper action calls for object creation
         let atom = choice((
             // Literals
             string_lit().map(|s| Expr::String(s.to_string())),
@@ -140,12 +146,26 @@ pub fn expr<'tokens, 'src: 'tokens>() -> impl Parser<
             just(Token::True).to(Expr::Bool(true)),
             just(Token::False).to(Expr::Bool(false)),
             just(Token::None).to(Expr::None),
+            just(Token::Ellipsis).to(Expr::SlotFill),
             // Reference
             reference().map(Expr::Reference),
             // Parenthesized expression
             expr.clone()
                 .delimited_by(just(Token::LParen), just(Token::RParen))
                 .map(|e: Spanned<Expr>| e.node),
+            // Empty object: {}
+            just(Token::LBrace)
+                .ignore_then(just(Token::RBrace))
+                .to(Expr::Object(IndexMap::new())),
+            // Non-empty object: {key: value, ...}
+            object_key
+                .then_ignore(just(Token::Colon))
+                .then(expr.clone())
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<(String, Spanned<Expr>)>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .map(|pairs| Expr::Object(pairs.into_iter().collect())),
             // Empty list
             just(Token::LBracket)
                 .ignore_then(just(Token::RBracket))

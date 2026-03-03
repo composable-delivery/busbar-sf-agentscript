@@ -5,7 +5,7 @@ use super::error::{GraphBuildError, ValidationError};
 use super::nodes::RefNode;
 use super::RefGraph;
 use crate::ast::{
-    Expr, InstructionPart, Instructions, ReasoningAction, ReasoningActionTarget, Reference,
+    Expr, InstructionPart, Instructions, ReasoningAction, ReasoningActionTarget, Reference, Type,
     VariableKind,
 };
 use crate::AgentFile;
@@ -19,6 +19,8 @@ pub struct RefGraphBuilder {
     action_defs: HashMap<(String, String), NodeIndex>,
     reasoning_actions: HashMap<(String, String), NodeIndex>,
     variables: HashMap<String, NodeIndex>,
+    /// Maps variable names to their declared types for property-access validation.
+    variable_types: HashMap<String, Type>,
     start_agent: Option<NodeIndex>,
     unresolved_references: Vec<ValidationError>,
 }
@@ -32,6 +34,7 @@ impl RefGraphBuilder {
             action_defs: HashMap::new(),
             reasoning_actions: HashMap::new(),
             variables: HashMap::new(),
+            variable_types: HashMap::new(),
             start_agent: None,
             unresolved_references: Vec::new(),
         }
@@ -74,6 +77,8 @@ impl RefGraphBuilder {
                 };
 
                 let idx = self.graph.add_node(node);
+                self.variable_types
+                    .insert(name.clone(), var.node.ty.node.clone());
                 self.variables.insert(name, idx);
             }
         }
@@ -353,9 +358,33 @@ impl RefGraphBuilder {
             for clause in &action.node.set_clauses {
                 let target_ref = &clause.node.target.node;
                 if target_ref.namespace == "variables" {
-                    let var_name = target_ref.path.join(".");
+                    // Use first path segment as the variable name; additional
+                    // segments are property accesses on object-typed variables
+                    // (e.g. @variables.user_stats.completed_tasks → "user_stats").
+                    let var_name = target_ref
+                        .path
+                        .first()
+                        .map_or_else(|| target_ref.path.join("."), |first| first.clone());
                     if let Some(&var_idx) = self.variables.get(&var_name) {
                         self.graph.add_edge(reasoning_idx, var_idx, RefEdge::Writes);
+                        // Validate property access: dot notation only valid on object types
+                        if target_ref.path.len() > 1 {
+                            if let Some(ty) = self.variable_types.get(&var_name) {
+                                if *ty != Type::Object {
+                                    self.unresolved_references.push(
+                                        ValidationError::InvalidPropertyAccess {
+                                            reference: target_ref.full_path(),
+                                            variable: var_name,
+                                            variable_type: Self::type_display_name(ty),
+                                            span: (
+                                                clause.node.target.span.start,
+                                                clause.node.target.span.end,
+                                            ),
+                                        },
+                                    );
+                                }
+                            }
+                        }
                     } else {
                         self.unresolved_references
                             .push(ValidationError::UnresolvedReference {
@@ -439,9 +468,30 @@ impl RefGraphBuilder {
         match &expr.node {
             Expr::Reference(reference) => {
                 if reference.namespace == "variables" {
-                    let var_name = reference.path.join(".");
+                    // Use first path segment as the variable name; additional
+                    // segments are property accesses on object-typed variables
+                    // (e.g. @variables.user_stats.completed_tasks → "user_stats").
+                    let var_name = reference
+                        .path
+                        .first()
+                        .map_or_else(|| reference.path.join("."), |first| first.clone());
                     if let Some(&var_idx) = self.variables.get(&var_name) {
                         self.graph.add_edge(from_idx, var_idx, RefEdge::Reads);
+                        // Validate property access: dot notation only valid on object types
+                        if reference.path.len() > 1 {
+                            if let Some(ty) = self.variable_types.get(&var_name) {
+                                if *ty != Type::Object {
+                                    self.unresolved_references.push(
+                                        ValidationError::InvalidPropertyAccess {
+                                            reference: reference.full_path(),
+                                            variable: var_name,
+                                            variable_type: Self::type_display_name(ty),
+                                            span: (expr.span.start, expr.span.end),
+                                        },
+                                    );
+                                }
+                            }
+                        }
                     } else {
                         self.unresolved_references
                             .push(ValidationError::UnresolvedReference {
@@ -513,8 +563,8 @@ impl RefGraphBuilder {
                 self.add_expression_edges(from_idx, object);
                 self.add_expression_edges(from_idx, index);
             }
-            // Literals don't have references
-            Expr::String(_) | Expr::Number(_) | Expr::Bool(_) | Expr::None => {}
+            // Literals and slot-fill don't have references
+            Expr::String(_) | Expr::Number(_) | Expr::Bool(_) | Expr::None | Expr::SlotFill => {}
         }
     }
 
@@ -533,6 +583,25 @@ impl RefGraphBuilder {
             Some(reference.path[0].clone())
         } else {
             None
+        }
+    }
+
+    /// Return a human-readable name for a variable type.
+    fn type_display_name(ty: &Type) -> String {
+        match ty {
+            Type::String => "string".to_string(),
+            Type::Number => "number".to_string(),
+            Type::Boolean => "boolean".to_string(),
+            Type::Object => "object".to_string(),
+            Type::Date => "date".to_string(),
+            Type::Timestamp => "timestamp".to_string(),
+            Type::Currency => "currency".to_string(),
+            Type::Id => "id".to_string(),
+            Type::Datetime => "datetime".to_string(),
+            Type::Time => "time".to_string(),
+            Type::Integer => "integer".to_string(),
+            Type::Long => "long".to_string(),
+            Type::List(inner) => format!("list[{}]", Self::type_display_name(inner)),
         }
     }
 }

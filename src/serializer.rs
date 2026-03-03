@@ -947,6 +947,7 @@ impl Writer {
                 }
             }
             Expr::None => "None".to_string(),
+            Expr::SlotFill => "...".to_string(),
             Expr::List(items) => {
                 let items_str: Vec<_> =
                     items.iter().map(|i| self.expr_to_string(&i.node)).collect();

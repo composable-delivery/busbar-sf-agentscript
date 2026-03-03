@@ -153,6 +153,7 @@ jobs:
           cargo install wasm-bindgen-cli --version "$VERSION" --locked
       - name: Build WASM package
         run: |
+          WASM_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           cargo build --lib --release --target wasm32-unknown-unknown --features wasm,graph
           mkdir -p pkg
           wasm-bindgen --target web --out-dir pkg \
@@ -160,8 +161,8 @@ jobs:
           node -e "
             const fs = require('fs');
             fs.writeFileSync('pkg/package.json', JSON.stringify({
-              name: 'busbar-sf-agentscript',
-              version: '0.0.1',
+              name: '@muselab/busbar-sf-agentscript',
+              version: '$WASM_VERSION',
               files: ['busbar_sf_agentscript_bg.wasm','busbar_sf_agentscript.js','busbar_sf_agentscript.d.ts','busbar_sf_agentscript_bg.wasm.d.ts'],
               main: 'busbar_sf_agentscript.js',
               types: 'busbar_sf_agentscript.d.ts',
@@ -169,8 +170,11 @@ jobs:
             }, null, 2));
           "
       - name: Install plugin dependencies
-        working-directory: plugin-agency/
-        run: npm install
+        run: |
+          # Link the locally built WASM into npm's global registry so
+          # plugin-agency can install it by name+version without modifying package.json
+          (cd pkg && npm link)
+          (cd plugin-agency && npm link @muselab/busbar-sf-agentscript && npm install)
       - name: Build SF plugin
         working-directory: plugin-agency/
         run: npm run build

@@ -1,19 +1,19 @@
 import { SfCommand, Flags, Ux } from "@salesforce/sf-plugins-core";
 import { Messages } from "@salesforce/core";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { execSync } from "child_process";
 import ansis from "ansis";
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as parser from "busbar-sf-agentscript";
+import * as parser from '../../../wasm-loader.js';
 // @ts-ignore - WASM module doesn't have TypeScript definitions
-import * as graph from "busbar-sf-agentscript";
+import * as graph from '../../../wasm-loader.js';
+import { resolveTargetFiles } from '../../../lib/agent-files.js';
 
-// After bundling, __dirname is lib/commands/agency/validate/ - go up 4 levels to plugin root
-const pluginRoot = path.resolve(__dirname, "..", "..", "..", "..");
-Messages.importMessagesDirectory(pluginRoot);
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages(
-  "sf-plugin-busbar-agency",
+  "@muselab/sf-plugin-busbar-agency",
   "agency.validate.platform",
 );
 
@@ -36,7 +36,7 @@ interface PlatformValidateResult {
   injectedDefaultUser: boolean;
 }
 
-export default class ValidatePlatform extends SfCommand<PlatformValidateResult> {
+export default class ValidatePlatform extends SfCommand<PlatformValidateResult | PlatformValidateResult[]> {
   public static readonly summary = messages.getMessage("summary");
   public static readonly description = messages.getMessage("description");
   public static readonly examples = messages.getMessages("examples");
@@ -46,8 +46,13 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
       char: "f",
       summary: messages.getMessage("flags.file.summary"),
       description: messages.getMessage("flags.file.description"),
-      required: true,
+      required: false,
       exists: true,
+    }),
+    path: Flags.directory({
+      summary: 'Directory to scan for agent files (default: current directory).',
+      description: 'Recursively searches this directory for .agent files when --file is not specified.',
+      default: '.',
     }),
     "target-org": Flags.requiredOrg({
       summary: messages.getMessage("flags.target-org.summary"),
@@ -60,15 +65,38 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
     }),
   };
 
-  public async run(): Promise<PlatformValidateResult> {
+  public async run(): Promise<PlatformValidateResult | PlatformValidateResult[]> {
     const { flags } = await this.parse(ValidatePlatform);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
-    const filePath = path.resolve(flags.file as string);
-    const source = fs.readFileSync(filePath, "utf-8");
-    const fileName = path.basename(filePath);
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
+
     const org = flags["target-org"];
     const orgAlias = org.getUsername() ?? "";
+    const results: PlatformValidateResult[] = [];
+
+    for (const filePath of files) {
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+      }
+      results.push(await this.validateFilePlatform(filePath, orgAlias, flags["skip-local"], ux));
+    }
+
+    return files.length === 1 ? results[0] : results;
+  }
+
+  private async validateFilePlatform(
+    filePath: string,
+    orgAlias: string,
+    skipLocal: boolean,
+    ux: Ux,
+  ): Promise<PlatformValidateResult> {
+    const source = fs.readFileSync(filePath, "utf-8");
+    const fileName = path.basename(filePath);
 
     // Extract agent_name from config block
     const agentName = extractAgentName(source);
@@ -86,7 +114,7 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
 
     // Create temp DX project
     const tmpDir = fs.mkdtempSync(
-      path.join(require("os").tmpdir(), "agency-validate-"),
+      path.join(os.tmpdir(), "agency-validate-"),
     );
     let platformResult: PlatformValidateResult["platform"] = {
       success: false,
@@ -131,7 +159,7 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
 
     // Run local WASM validation unless skipped
     let localResult: { valid: boolean; issues: any[] } | undefined;
-    if (!flags["skip-local"]) {
+    if (!skipLocal) {
       try {
         const localStart = performance.now();
         const issues: any[] = [];
@@ -230,24 +258,20 @@ export default class ValidatePlatform extends SfCommand<PlatformValidateResult> 
           this.log("");
 
           if (issues.length > 0) {
-            ux.table(issues, {
-              severity: {
-                header: "Type",
-                get: (row) =>
-                  row.severity === "Error"
-                    ? ansis.red(row.severity)
-                    : ansis.yellow(row.severity),
-              },
-              location: {
-                header: "Location",
-                get: (row: any) =>
-                  row.line ? `L${row.line}:C${row.column}` : "-",
-              },
-              message: { header: "Message" },
-              hint: {
-                header: "Hint",
-                get: (row: any) => (row.hint ? ansis.dim(row.hint) : ""),
-              },
+            const tableData = issues.map((row: any) => ({
+              type: row.severity === "Error" ? ansis.red(row.severity) : ansis.yellow(row.severity),
+              location: row.line ? `L${row.line}:C${row.column}` : "-",
+              message: row.message,
+              hint: row.hint ? ansis.dim(row.hint) : "",
+            }));
+            ux.table({
+              data: tableData,
+              columns: [
+                { key: 'type', name: 'Type' },
+                { key: 'location', name: 'Location' },
+                { key: 'message', name: 'Message' },
+                { key: 'hint', name: 'Hint' },
+              ],
             });
             this.log("");
           }

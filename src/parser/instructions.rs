@@ -9,6 +9,8 @@
 //! This is a known architectural issue that should be replaced with proper
 //! chumsky combinators when time permits.
 
+use std::borrow::Cow;
+
 use crate::ast::{BinOp, Expr, InstructionPart, Instructions, Spanned, UnaryOp};
 use crate::lexer::Token;
 use chumsky::prelude::*;
@@ -64,7 +66,7 @@ fn collect_multiline_tokens<'tokens, 'src: 'tokens>() -> impl Parser<
                     // Any other token except DEDENT (which closes our block)
                     any()
                         .filter(|t: &Token| !matches!(t, Token::Indent | Token::Dedent))
-                        .map_with(|t, e| vec![(t.clone(), e.span())]),
+                        .map_with(|t, e| vec![(t, e.span())]),
                 ))
             })
             .repeated()
@@ -74,39 +76,40 @@ fn collect_multiline_tokens<'tokens, 'src: 'tokens>() -> impl Parser<
         .then_ignore(dedent())
 }
 
-/// Parse static multiline instructions (:|).
-pub(crate) fn static_instructions<'tokens, 'src: 'tokens>() -> impl Parser<
+/// Combined instructions parser that consumes `Token::Instructions` once,
+/// then dispatches on the colon variant (`:`, `:|`, `:->`, `: ->`).
+/// Avoids redundant backtracking when used in place of
+/// `choice((simple_instructions(), static_instructions(), dynamic_instructions()))`.
+pub(crate) fn any_instructions<'tokens, 'src: 'tokens>() -> impl Parser<
     'tokens,
     ParserInput<'tokens, 'src>,
     Spanned<Instructions>,
     extra::Err<Rich<'tokens, Token<'src>, Span>>,
 > + Clone {
-    just(Token::Instructions)
-        .ignore_then(just(Token::ColonPipe))
-        .ignore_then(collect_multiline_tokens())
-        .map_with(|tokens, e| {
-            let lines = parse_multiline_text_content(&tokens);
-            Spanned::new(Instructions::Static(lines), to_ast_span(e.span()))
-        })
-}
-
-/// Parse dynamic multiline instructions (:-> or : ->).
-pub(crate) fn dynamic_instructions<'tokens, 'src: 'tokens>() -> impl Parser<
-    'tokens,
-    ParserInput<'tokens, 'src>,
-    Spanned<Instructions>,
-    extra::Err<Rich<'tokens, Token<'src>, Span>>,
-> + Clone {
-    just(Token::Instructions)
-        .ignore_then(choice((
+    just(Token::Instructions).ignore_then(choice((
+        // Static multiline: instructions:|
+        just(Token::ColonPipe)
+            .ignore_then(collect_multiline_tokens())
+            .map_with(|tokens, e| {
+                let lines = parse_multiline_text_content(&tokens);
+                Spanned::new(Instructions::Static(lines), to_ast_span(e.span()))
+            }),
+        // Dynamic multiline: instructions:-> or instructions: ->
+        choice((
             just(Token::ColonArrow).ignored(),
             just(Token::Colon).ignore_then(just(Token::Arrow)).ignored(),
-        )))
+        ))
         .ignore_then(collect_multiline_tokens())
         .map_with(|tokens, e| {
             let parts = parse_instruction_parts(&tokens);
             Spanned::new(Instructions::Dynamic(parts), to_ast_span(e.span()))
-        })
+        }),
+        // Simple: instructions: "..."
+        just(Token::Colon).ignore_then(spanned_string()).map(|s| {
+            let span = s.span.clone();
+            Spanned::new(Instructions::Simple(s.node), span)
+        }),
+    )))
 }
 
 // ============================================================================
@@ -322,24 +325,33 @@ fn parse_text_line_with_interpolations(
     parts
 }
 
-/// Build an expression from interpolation tokens (similar to build_condition_expr).
-fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
+/// Build an expression tree from a slice of tokens.
+///
+/// Handles references (`@variables.x`), literals, binary operators, and
+/// unary negation (`not`). Used by both interpolation and condition parsing.
+/// The `empty_expr` parameter controls what is returned when the token slice
+/// is empty (conditions default to `Expr::Bool(true)`, interpolations to `Expr::None`).
+fn build_expr_from_tokens(tokens: &[(Token<'_>, Span)], empty_expr: Expr) -> Spanned<Expr> {
     use crate::ast::Reference;
 
     if tokens.is_empty() {
-        return Spanned::new(Expr::None, 0..0);
+        return Spanned::new(empty_expr, 0..0);
     }
 
     let start = tokens[0].1.start;
     let end = tokens.last().map(|t| t.1.end).unwrap_or(start);
 
-    // Try to parse as a simple expression (reference, literal, or binary op)
     let mut expr_parts: Vec<Spanned<Expr>> = Vec::new();
     let mut ops: Vec<BinOp> = Vec::new();
     let mut i = 0;
+    let mut negate_next = false;
 
     while i < tokens.len() {
         match &tokens[i].0 {
+            Token::Not => {
+                negate_next = true;
+                i += 1;
+            }
             Token::At => {
                 let ref_start = tokens[i].1.start;
                 i += 1;
@@ -383,34 +395,105 @@ fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
                 };
                 let namespace = ref_parts.first().cloned().unwrap_or_default();
                 let path = ref_parts.into_iter().skip(1).collect();
-                expr_parts.push(Spanned::new(
+                let mut expr = Spanned::new(
                     Expr::Reference(Reference { namespace, path }),
                     ref_start..ref_end,
-                ));
+                );
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        ref_start..ref_end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
             }
             Token::StringLit(s) => {
                 let span = tokens[i].1;
-                expr_parts.push(Spanned::new(Expr::String(s.to_string()), span.start..span.end));
+                let mut expr = Spanned::new(Expr::String(s.to_string()), span.start..span.end);
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        span.start..span.end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
                 i += 1;
             }
             Token::NumberLit(n) => {
                 let span = tokens[i].1;
-                expr_parts.push(Spanned::new(Expr::Number(*n), span.start..span.end));
+                let mut expr = Spanned::new(Expr::Number(*n), span.start..span.end);
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        span.start..span.end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
                 i += 1;
             }
             Token::True => {
                 let span = tokens[i].1;
-                expr_parts.push(Spanned::new(Expr::Bool(true), span.start..span.end));
+                let mut expr = Spanned::new(Expr::Bool(true), span.start..span.end);
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        span.start..span.end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
                 i += 1;
             }
             Token::False => {
                 let span = tokens[i].1;
-                expr_parts.push(Spanned::new(Expr::Bool(false), span.start..span.end));
+                let mut expr = Spanned::new(Expr::Bool(false), span.start..span.end);
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        span.start..span.end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
                 i += 1;
             }
             Token::None => {
                 let span = tokens[i].1;
-                expr_parts.push(Spanned::new(Expr::None, span.start..span.end));
+                let mut expr = Spanned::new(Expr::None, span.start..span.end);
+                if negate_next {
+                    expr = Spanned::new(
+                        Expr::UnaryOp {
+                            op: UnaryOp::Not,
+                            operand: Box::new(expr),
+                        },
+                        span.start..span.end,
+                    );
+                    negate_next = false;
+                }
+                expr_parts.push(expr);
+                i += 1;
+            }
+            Token::Ellipsis => {
+                let span = tokens[i].1;
+                expr_parts.push(Spanned::new(Expr::SlotFill, span.start..span.end));
                 i += 1;
             }
             Token::Plus => {
@@ -418,7 +501,6 @@ fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
                 i += 1;
             }
             Token::Minus => {
-                // Could be subtraction or negation - for now treat as subtraction
                 ops.push(BinOp::Sub);
                 i += 1;
             }
@@ -461,13 +543,13 @@ fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
     }
 
     if expr_parts.is_empty() {
-        return Spanned::new(Expr::None, start..end);
+        return Spanned::new(empty_expr, start..end);
     }
 
     // Build the expression tree (left-to-right, no precedence for now)
     let mut result = expr_parts.remove(0);
-    for op in ops {
-        if !expr_parts.is_empty() {
+    for (i, op) in ops.into_iter().enumerate() {
+        if i < expr_parts.len() {
             let right = expr_parts.remove(0);
             let span = result.span.start..right.span.end;
             result = Spanned::new(
@@ -482,6 +564,11 @@ fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
     }
 
     result
+}
+
+/// Build an expression from interpolation tokens.
+fn build_interpolation_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
+    build_expr_from_tokens(tokens, Expr::None)
 }
 
 /// Parse instruction parts from collected tokens.
@@ -668,200 +755,7 @@ fn parse_if_block(
 
 /// Build an expression from condition tokens.
 fn build_condition_expr(tokens: &[(Token<'_>, Span)]) -> Spanned<Expr> {
-    use crate::ast::Reference;
-
-    if tokens.is_empty() {
-        return Spanned::new(Expr::Bool(true), 0..0);
-    }
-
-    let start = tokens[0].1.start;
-    let end = tokens.last().map(|t| t.1.end).unwrap_or(start);
-
-    let mut expr_parts: Vec<Spanned<Expr>> = Vec::new();
-    let mut ops: Vec<BinOp> = Vec::new();
-    let mut i = 0;
-    let mut negate_next = false;
-
-    while i < tokens.len() {
-        match &tokens[i].0 {
-            Token::Not => {
-                negate_next = true;
-                i += 1;
-            }
-            Token::At => {
-                let ref_start = tokens[i].1.start;
-                i += 1;
-                let mut ref_parts = Vec::new();
-                while i < tokens.len() {
-                    match &tokens[i].0 {
-                        Token::Variables => {
-                            ref_parts.push("variables".to_string());
-                            i += 1;
-                        }
-                        Token::Actions => {
-                            ref_parts.push("actions".to_string());
-                            i += 1;
-                        }
-                        Token::Outputs => {
-                            ref_parts.push("outputs".to_string());
-                            i += 1;
-                        }
-                        Token::Ident(s) => {
-                            ref_parts.push(s.to_string());
-                            i += 1;
-                        }
-                        Token::Dot => {
-                            i += 1;
-                        }
-                        _ => break,
-                    }
-                }
-                let ref_end = if i > 0 {
-                    tokens[i.saturating_sub(1)].1.end
-                } else {
-                    ref_start
-                };
-                let namespace = ref_parts.first().cloned().unwrap_or_default();
-                let path = ref_parts.into_iter().skip(1).collect();
-                let mut expr = Spanned::new(
-                    Expr::Reference(Reference { namespace, path }),
-                    ref_start..ref_end,
-                );
-                if negate_next {
-                    expr = Spanned::new(
-                        Expr::UnaryOp {
-                            op: UnaryOp::Not,
-                            operand: Box::new(expr),
-                        },
-                        ref_start..ref_end,
-                    );
-                    negate_next = false;
-                }
-                expr_parts.push(expr);
-            }
-            Token::And => {
-                ops.push(BinOp::And);
-                i += 1;
-            }
-            Token::Or => {
-                ops.push(BinOp::Or);
-                i += 1;
-            }
-            Token::Eq => {
-                ops.push(BinOp::Eq);
-                i += 1;
-            }
-            Token::Ne => {
-                ops.push(BinOp::Ne);
-                i += 1;
-            }
-            Token::Lt => {
-                ops.push(BinOp::Lt);
-                i += 1;
-            }
-            Token::Gt => {
-                ops.push(BinOp::Gt);
-                i += 1;
-            }
-            Token::Le => {
-                ops.push(BinOp::Le);
-                i += 1;
-            }
-            Token::Ge => {
-                ops.push(BinOp::Ge);
-                i += 1;
-            }
-            Token::StringLit(s) => {
-                let span = tokens[i].1;
-                let mut expr = Spanned::new(Expr::String(s.to_string()), span.start..span.end);
-                if negate_next {
-                    expr = Spanned::new(
-                        Expr::UnaryOp {
-                            op: UnaryOp::Not,
-                            operand: Box::new(expr),
-                        },
-                        span.start..span.end,
-                    );
-                    negate_next = false;
-                }
-                expr_parts.push(expr);
-                i += 1;
-            }
-            Token::NumberLit(n) => {
-                let span = tokens[i].1;
-                let mut expr = Spanned::new(Expr::Number(*n), span.start..span.end);
-                if negate_next {
-                    expr = Spanned::new(
-                        Expr::UnaryOp {
-                            op: UnaryOp::Not,
-                            operand: Box::new(expr),
-                        },
-                        span.start..span.end,
-                    );
-                    negate_next = false;
-                }
-                expr_parts.push(expr);
-                i += 1;
-            }
-            Token::True => {
-                let span = tokens[i].1;
-                let mut expr = Spanned::new(Expr::Bool(true), span.start..span.end);
-                if negate_next {
-                    expr = Spanned::new(
-                        Expr::UnaryOp {
-                            op: UnaryOp::Not,
-                            operand: Box::new(expr),
-                        },
-                        span.start..span.end,
-                    );
-                    negate_next = false;
-                }
-                expr_parts.push(expr);
-                i += 1;
-            }
-            Token::False => {
-                let span = tokens[i].1;
-                let mut expr = Spanned::new(Expr::Bool(false), span.start..span.end);
-                if negate_next {
-                    expr = Spanned::new(
-                        Expr::UnaryOp {
-                            op: UnaryOp::Not,
-                            operand: Box::new(expr),
-                        },
-                        span.start..span.end,
-                    );
-                    negate_next = false;
-                }
-                expr_parts.push(expr);
-                i += 1;
-            }
-            _ => {
-                i += 1;
-            }
-        }
-    }
-
-    if expr_parts.is_empty() {
-        return Spanned::new(Expr::Bool(true), start..end);
-    }
-
-    let mut result = expr_parts.remove(0);
-    for (i, op) in ops.into_iter().enumerate() {
-        if i < expr_parts.len() {
-            let right = expr_parts.remove(0);
-            let span = result.span.start..right.span.end;
-            result = Spanned::new(
-                Expr::BinOp {
-                    left: Box::new(result),
-                    op,
-                    right: Box::new(right),
-                },
-                span,
-            );
-        }
-    }
-
-    result
+    build_expr_from_tokens(tokens, Expr::Bool(true))
 }
 
 /// Collect tokens for an indented block.
@@ -978,7 +872,7 @@ fn skip_run_block(tokens: &[(Token<'_>, Span)], start: usize) -> usize {
 }
 
 /// Append a token's text representation to a string.
-fn append_token_text(text: &mut String, tok: &Token<'_>) {
+fn append_token_text<'a>(text: &mut String, tok: &Token<'a>) {
     let s = token_to_text(tok);
     if !s.is_empty() {
         if !text.is_empty() && needs_space_before(&s) && needs_space_after_last(text) {
@@ -997,124 +891,126 @@ fn needs_space_after_last(s: &str) -> bool {
 }
 
 /// Convert a single token to its text representation.
-fn token_to_text(tok: &Token<'_>) -> String {
+/// Returns `Cow::Borrowed` for static tokens and identifiers (zero-alloc),
+/// only allocating for `StringLit` (needs wrapping quotes) and `NumberLit` (needs formatting).
+fn token_to_text<'a>(tok: &Token<'a>) -> Cow<'a, str> {
     match tok {
-        Token::Ident(s) => s.to_string(),
-        Token::StringLit(s) => format!("\"{}\"", s),
+        Token::Ident(s) => Cow::Borrowed(*s),
+        Token::StringLit(s) => Cow::Owned(format!("\"{}\"", s)),
         Token::NumberLit(n) => {
             if n.fract() == 0.0 {
-                format!("{}", *n as i64)
+                Cow::Owned(format!("{}", *n as i64))
             } else {
-                n.to_string()
+                Cow::Owned(n.to_string())
             }
         }
-        Token::Newline => "\n".to_string(),
-        Token::Colon => ":".to_string(),
-        Token::Dot => ".".to_string(),
-        Token::Comma => ",".to_string(),
-        Token::Minus => "-".to_string(),
-        Token::Plus => "+".to_string(),
-        Token::LParen => "(".to_string(),
-        Token::RParen => ")".to_string(),
-        Token::LBracket => "[".to_string(),
-        Token::RBracket => "]".to_string(),
-        Token::LBrace => "{".to_string(),
-        Token::RBrace => "}".to_string(),
-        Token::ExclBrace => "{!".to_string(),
-        Token::DoubleLBrace => "{{".to_string(),
-        Token::DoubleBrace => "}}".to_string(),
-        Token::At => "@".to_string(),
-        Token::Slash => "/".to_string(),
-        Token::Question => "?".to_string(),
-        Token::Exclamation => "!".to_string(),
-        Token::Dollar => "$".to_string(),
-        Token::Percent => "%".to_string(),
-        Token::Star => "*".to_string(),
-        Token::Ampersand => "&".to_string(),
-        Token::Semicolon => ";".to_string(),
-        Token::Backtick => "`".to_string(),
-        Token::Tilde => "~".to_string(),
-        Token::Caret => "^".to_string(),
-        Token::Backslash => "\\".to_string(),
-        Token::Underscore => "_".to_string(),
-        Token::Apostrophe => "'".to_string(),
-        Token::Eq => "==".to_string(),
-        Token::Ne => "!=".to_string(),
-        Token::Le => "<=".to_string(),
-        Token::Ge => ">=".to_string(),
-        Token::Lt => "<".to_string(),
-        Token::Gt => ">".to_string(),
-        Token::Assign => "=".to_string(),
-        Token::Ellipsis => "...".to_string(),
-        Token::Arrow => "->".to_string(),
-        Token::Pipe => "|".to_string(),
-        Token::UnicodeText(s) => s.to_string(),
+        Token::UnicodeText(s) => Cow::Borrowed(*s),
+        Token::Newline => Cow::Borrowed("\n"),
+        Token::Colon => Cow::Borrowed(":"),
+        Token::Dot => Cow::Borrowed("."),
+        Token::Comma => Cow::Borrowed(","),
+        Token::Minus => Cow::Borrowed("-"),
+        Token::Plus => Cow::Borrowed("+"),
+        Token::LParen => Cow::Borrowed("("),
+        Token::RParen => Cow::Borrowed(")"),
+        Token::LBracket => Cow::Borrowed("["),
+        Token::RBracket => Cow::Borrowed("]"),
+        Token::LBrace => Cow::Borrowed("{"),
+        Token::RBrace => Cow::Borrowed("}"),
+        Token::ExclBrace => Cow::Borrowed("{!"),
+        Token::DoubleLBrace => Cow::Borrowed("{{"),
+        Token::DoubleBrace => Cow::Borrowed("}}"),
+        Token::At => Cow::Borrowed("@"),
+        Token::Slash => Cow::Borrowed("/"),
+        Token::Question => Cow::Borrowed("?"),
+        Token::Exclamation => Cow::Borrowed("!"),
+        Token::Dollar => Cow::Borrowed("$"),
+        Token::Percent => Cow::Borrowed("%"),
+        Token::Star => Cow::Borrowed("*"),
+        Token::Ampersand => Cow::Borrowed("&"),
+        Token::Semicolon => Cow::Borrowed(";"),
+        Token::Backtick => Cow::Borrowed("`"),
+        Token::Tilde => Cow::Borrowed("~"),
+        Token::Caret => Cow::Borrowed("^"),
+        Token::Backslash => Cow::Borrowed("\\"),
+        Token::Underscore => Cow::Borrowed("_"),
+        Token::Apostrophe => Cow::Borrowed("'"),
+        Token::Eq => Cow::Borrowed("=="),
+        Token::Ne => Cow::Borrowed("!="),
+        Token::Le => Cow::Borrowed("<="),
+        Token::Ge => Cow::Borrowed(">="),
+        Token::Lt => Cow::Borrowed("<"),
+        Token::Gt => Cow::Borrowed(">"),
+        Token::Assign => Cow::Borrowed("="),
+        Token::Ellipsis => Cow::Borrowed("..."),
+        Token::Arrow => Cow::Borrowed("->"),
+        Token::Pipe => Cow::Borrowed("|"),
         // Keywords
-        Token::If => "if".to_string(),
-        Token::Else => "else".to_string(),
-        Token::And => "and".to_string(),
-        Token::Or => "or".to_string(),
-        Token::Not => "not".to_string(),
-        Token::True => "True".to_string(),
-        Token::False => "False".to_string(),
-        Token::None => "None".to_string(),
-        Token::To => "to".to_string(),
-        Token::With => "with".to_string(),
-        Token::Set => "set".to_string(),
-        Token::Run => "run".to_string(),
-        Token::As => "as".to_string(),
-        Token::Is => "is".to_string(),
-        Token::Available => "available".to_string(),
-        Token::When => "when".to_string(),
-        Token::Transition => "transition".to_string(),
-        Token::Variables => "variables".to_string(),
-        Token::Actions => "actions".to_string(),
-        Token::Outputs => "outputs".to_string(),
-        Token::Inputs => "inputs".to_string(),
-        Token::Topic => "topic".to_string(),
-        Token::Description => "description".to_string(),
-        Token::Source => "source".to_string(),
-        Token::Target => "target".to_string(),
-        Token::Label => "label".to_string(),
-        Token::Config => "config".to_string(),
-        Token::System => "system".to_string(),
-        Token::Reasoning => "reasoning".to_string(),
-        Token::Instructions => "instructions".to_string(),
-        Token::Messages => "messages".to_string(),
-        Token::Welcome => "welcome".to_string(),
-        Token::Error => "error".to_string(),
-        Token::Connection => "connection".to_string(),
-        Token::Connections => "connections".to_string(),
-        Token::Knowledge => "knowledge".to_string(),
-        Token::Language => "language".to_string(),
-        Token::StartAgent => "start_agent".to_string(),
-        Token::BeforeReasoning => "before_reasoning".to_string(),
-        Token::AfterReasoning => "after_reasoning".to_string(),
-        Token::Mutable => "mutable".to_string(),
-        Token::Linked => "linked".to_string(),
-        Token::String => "string".to_string(),
-        Token::Number => "number".to_string(),
-        Token::Boolean => "boolean".to_string(),
-        Token::Object => "object".to_string(),
-        Token::List => "list".to_string(),
-        Token::Date => "date".to_string(),
-        Token::Timestamp => "timestamp".to_string(),
-        Token::Currency => "currency".to_string(),
-        Token::Id => "id".to_string(),
-        Token::Datetime => "datetime".to_string(),
-        Token::Time => "time".to_string(),
-        Token::Integer => "integer".to_string(),
-        Token::Long => "long".to_string(),
-        Token::ColonPipe => ":|".to_string(),
-        Token::ColonArrow => ":->".to_string(),
-        Token::IsRequired => "is_required".to_string(),
-        Token::IsDisplayable => "is_displayable".to_string(),
-        Token::IsUsedByPlanner => "is_used_by_planner".to_string(),
-        Token::ComplexDataTypeName => "complex_data_type_name".to_string(),
-        Token::FilterFromAgent => "filter_from_agent".to_string(),
-        Token::RequireUserConfirmation => "require_user_confirmation".to_string(),
-        Token::IncludeInProgressIndicator => "include_in_progress_indicator".to_string(),
-        Token::ProgressIndicatorMessage => "progress_indicator_message".to_string(),
-        Token::Comment(_) | Token::Indent | Token::Dedent => String::new(),
+        Token::If => Cow::Borrowed("if"),
+        Token::Else => Cow::Borrowed("else"),
+        Token::And => Cow::Borrowed("and"),
+        Token::Or => Cow::Borrowed("or"),
+        Token::Not => Cow::Borrowed("not"),
+        Token::True => Cow::Borrowed("True"),
+        Token::False => Cow::Borrowed("False"),
+        Token::None => Cow::Borrowed("None"),
+        Token::To => Cow::Borrowed("to"),
+        Token::With => Cow::Borrowed("with"),
+        Token::Set => Cow::Borrowed("set"),
+        Token::Run => Cow::Borrowed("run"),
+        Token::As => Cow::Borrowed("as"),
+        Token::Is => Cow::Borrowed("is"),
+        Token::Available => Cow::Borrowed("available"),
+        Token::When => Cow::Borrowed("when"),
+        Token::Transition => Cow::Borrowed("transition"),
+        Token::Variables => Cow::Borrowed("variables"),
+        Token::Actions => Cow::Borrowed("actions"),
+        Token::Outputs => Cow::Borrowed("outputs"),
+        Token::Inputs => Cow::Borrowed("inputs"),
+        Token::Topic => Cow::Borrowed("topic"),
+        Token::Description => Cow::Borrowed("description"),
+        Token::Source => Cow::Borrowed("source"),
+        Token::Target => Cow::Borrowed("target"),
+        Token::Label => Cow::Borrowed("label"),
+        Token::Config => Cow::Borrowed("config"),
+        Token::System => Cow::Borrowed("system"),
+        Token::Reasoning => Cow::Borrowed("reasoning"),
+        Token::Instructions => Cow::Borrowed("instructions"),
+        Token::Messages => Cow::Borrowed("messages"),
+        Token::Welcome => Cow::Borrowed("welcome"),
+        Token::Error => Cow::Borrowed("error"),
+        Token::Connection => Cow::Borrowed("connection"),
+        Token::Connections => Cow::Borrowed("connections"),
+        Token::Knowledge => Cow::Borrowed("knowledge"),
+        Token::Language => Cow::Borrowed("language"),
+        Token::StartAgent => Cow::Borrowed("start_agent"),
+        Token::BeforeReasoning => Cow::Borrowed("before_reasoning"),
+        Token::AfterReasoning => Cow::Borrowed("after_reasoning"),
+        Token::Mutable => Cow::Borrowed("mutable"),
+        Token::Linked => Cow::Borrowed("linked"),
+        Token::String => Cow::Borrowed("string"),
+        Token::Number => Cow::Borrowed("number"),
+        Token::Boolean => Cow::Borrowed("boolean"),
+        Token::Object => Cow::Borrowed("object"),
+        Token::List => Cow::Borrowed("list"),
+        Token::Date => Cow::Borrowed("date"),
+        Token::Timestamp => Cow::Borrowed("timestamp"),
+        Token::Currency => Cow::Borrowed("currency"),
+        Token::Id => Cow::Borrowed("id"),
+        Token::Datetime => Cow::Borrowed("datetime"),
+        Token::Time => Cow::Borrowed("time"),
+        Token::Integer => Cow::Borrowed("integer"),
+        Token::Long => Cow::Borrowed("long"),
+        Token::ColonPipe => Cow::Borrowed(":|"),
+        Token::ColonArrow => Cow::Borrowed(":->"),
+        Token::IsRequired => Cow::Borrowed("is_required"),
+        Token::IsDisplayable => Cow::Borrowed("is_displayable"),
+        Token::IsUsedByPlanner => Cow::Borrowed("is_used_by_planner"),
+        Token::ComplexDataTypeName => Cow::Borrowed("complex_data_type_name"),
+        Token::FilterFromAgent => Cow::Borrowed("filter_from_agent"),
+        Token::RequireUserConfirmation => Cow::Borrowed("require_user_confirmation"),
+        Token::IncludeInProgressIndicator => Cow::Borrowed("include_in_progress_indicator"),
+        Token::ProgressIndicatorMessage => Cow::Borrowed("progress_indicator_message"),
+        Token::Comment(_) | Token::Indent | Token::Dedent => Cow::Borrowed(""),
     }
 }

@@ -11,7 +11,7 @@ use chumsky::prelude::*;
 
 use super::actions::actions_block;
 use super::directives::{after_reasoning_block, before_reasoning_block};
-use super::instructions::{dynamic_instructions, simple_instructions, static_instructions};
+use super::instructions::any_instructions;
 use super::primitives::{
     dedent, description_entry, indent, newline, skip_block_noise, spanned_ident, spanned_string,
     to_ast_span, ParserInput, Span,
@@ -43,7 +43,7 @@ fn topic_system_override<'tokens, 'src: 'tokens>() -> impl Parser<
         .ignore_then(skip_block_noise())
         .ignore_then(indent())
         .ignore_then(
-            choice((simple_instructions(), static_instructions(), dynamic_instructions()))
+            any_instructions()
                 .separated_by(skip_block_noise())
                 .allow_trailing()
                 .collect::<Vec<_>>(),
