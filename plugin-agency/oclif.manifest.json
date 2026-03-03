@@ -77,6 +77,12 @@
             "prompt"
           ],
           "type": "option"
+        },
+        "verbose": {
+          "name": "verbose",
+          "summary": "Show full parameter details per action. By default shows only the summary table.",
+          "allowNo": false,
+          "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
@@ -205,6 +211,12 @@
           "hasDynamicHelp": true,
           "multiple": false,
           "type": "option"
+        },
+        "verbose": {
+          "name": "verbose",
+          "summary": "Show full dependency tables. By default shows only a summary.",
+          "allowNo": false,
+          "type": "boolean"
         }
       },
       "hasDynamicHelp": true,
@@ -309,6 +321,14 @@
           "summary": "Show graph statistics after rendering.",
           "allowNo": false,
           "type": "boolean"
+        },
+        "output": {
+          "name": "output",
+          "summary": "Path to write the HTML report file. Defaults to agents-report.html (or <name>.html for a single agent).",
+          "hasDynamicHelp": false,
+          "helpValue": "FILE",
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -572,6 +592,12 @@
             "pretty"
           ],
           "type": "option"
+        },
+        "verbose": {
+          "name": "verbose",
+          "summary": "Show detailed output with tables for config, variables, system, and topics.",
+          "allowNo": false,
+          "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
@@ -656,6 +682,12 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
+        },
+        "verbose": {
+          "name": "verbose",
+          "summary": "Show each individual path. By default shows only counts.",
+          "allowNo": false,
+          "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
@@ -800,6 +832,12 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
+        },
+        "verbose": {
+          "name": "verbose",
+          "summary": "Show section headers and full formatting per file.",
+          "allowNo": false,
+          "type": "boolean"
         }
       },
       "hasDynamicHelp": false,

@@ -65,77 +65,81 @@ export default class AgencyImpact extends SfCommand<ImpactResult> {
     const { flags } = await this.parse(AgencyImpact);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
-    try {
-      const scanDir = path.resolve(flags.path as string);
-      const resourceName = flags.resource as string;
-      const resourceType = flags.type as string;
+    const scanDir = path.resolve(flags.path as string);
+    const resourceName = flags.resource as string;
+    const resourceType = flags.type as string;
 
-      // Recursively find all .agent files
-      const agentFiles = findAgentFiles(scanDir);
+    const agentFiles = findAgentFiles(scanDir);
 
-      const matches: ImpactMatch[] = [];
-
-      for (const agentFile of agentFiles) {
-        const source = fs.readFileSync(agentFile, 'utf-8');
-
-        let found = false;
-        let matchType = '';
-
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      agentFiles.map(async (agentFile) => {
         try {
-          if (resourceType === 'flow' || resourceType === 'all') {
-            if (graphLib.uses_flow(source, resourceName)) {
-              found = true;
-              matchType = 'flow';
-            }
-          }
-          if (!found && (resourceType === 'apex' || resourceType === 'all')) {
-            if (graphLib.uses_apex_class(source, resourceName)) {
-              found = true;
-              matchType = 'apex';
-            }
-          }
-          if (!found && (resourceType === 'sobject' || resourceType === 'all')) {
-            if (graphLib.uses_sobject(source, resourceName)) {
-              found = true;
-              matchType = 'sobject';
-            }
-          }
-          if (!found && (resourceType === 'prompt' || resourceType === 'all')) {
-            // Fall back to dependency report for prompts
-            const report: DependencyReport = graphLib.extract_dependencies(source);
-            if (report.prompt_templates.includes(resourceName)) {
-              found = true;
-              matchType = 'prompt';
-            }
-          }
-        } catch {
-          // Skip unparseable files
+          const source = await fs.promises.readFile(agentFile, 'utf-8');
+          return { agentFile, source, ok: true as const };
+        } catch (e) {
+          return { agentFile, source: '', ok: false as const };
         }
+      })
+    );
 
-        if (found) {
-          matches.push({ file: path.relative(scanDir, agentFile), dep_type: matchType });
+    const matches: ImpactMatch[] = [];
+
+    for (const fileRead of fileReads) {
+      if (!fileRead.ok) continue; // Skip unreadable files silently
+
+      const { agentFile, source } = fileRead;
+      let found = false;
+      let matchType = '';
+
+      try {
+        if (resourceType === 'flow' || resourceType === 'all') {
+          if (graphLib.uses_flow(source, resourceName)) {
+            found = true;
+            matchType = 'flow';
+          }
         }
+        if (!found && (resourceType === 'apex' || resourceType === 'all')) {
+          if (graphLib.uses_apex_class(source, resourceName)) {
+            found = true;
+            matchType = 'apex';
+          }
+        }
+        if (!found && (resourceType === 'sobject' || resourceType === 'all')) {
+          if (graphLib.uses_sobject(source, resourceName)) {
+            found = true;
+            matchType = 'sobject';
+          }
+        }
+        if (!found && (resourceType === 'prompt' || resourceType === 'all')) {
+          const report: DependencyReport = graphLib.extract_dependencies(source);
+          if (report.prompt_templates.includes(resourceName)) {
+            found = true;
+            matchType = 'prompt';
+          }
+        }
+      } catch {
+        // Skip unparseable files silently
       }
 
-      const result: ImpactResult = {
-        resource: resourceName,
-        matches,
-        total_scanned: agentFiles.length,
-      };
-
-      if (flags.format === 'json') {
-        this.log(JSON.stringify(result, null, 2));
-      } else {
-        this.displayPretty(ux, result);
+      if (found) {
+        matches.push({ file: path.relative(scanDir, agentFile), dep_type: matchType });
       }
-
-      return result;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.impactFailure', [error.message]);
-      }
-      throw error;
     }
+
+    const result: ImpactResult = {
+      resource: resourceName,
+      matches,
+      total_scanned: agentFiles.length,
+    };
+
+    if (flags.format === 'json') {
+      this.log(JSON.stringify(result, null, 2));
+    } else {
+      this.displayPretty(ux, result);
+    }
+
+    return result;
   }
 
   private displayPretty(ux: Ux, result: ImpactResult): void {

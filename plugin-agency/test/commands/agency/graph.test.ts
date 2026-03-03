@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initWasm } from '../../helpers/wasm-init.js';
 import AgentscriptGraph from '../../../src/commands/agency/graph.js';
@@ -43,16 +45,21 @@ describe('agency graph', () => {
     expect(r.graph).toContain('flowchart LR');
   });
 
-  it('renders html format', async () => {
+  it('renders html format and writes to file', async () => {
+    const outFile = path.join(os.tmpdir(), `test-graph-${Date.now()}.html`);
     const result = await AgentscriptGraph.run(
-      ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'html'],
+      ['--file', path.join(FIXTURES, 'simple.agent'), '--format', 'html', '--output', outFile],
       undefined
     );
     expect(result).toBeTruthy();
     const r = result as any;
     expect(r.format).toBe('html');
-    expect(r.graph).toContain('<!DOCTYPE html>');
-    expect(r.graph).toContain('mermaid');
+    // graph field contains the mermaid source
+    expect(r.graph).toContain('flowchart LR');
+    // HTML file is written to disk
+    const html = fs.readFileSync(outFile, 'utf-8');
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('mermaid');
   });
 
   it('renders graphml format', async () => {

@@ -63,41 +63,69 @@ export default class AgencyPaths extends SfCommand<PathsResult | PathsResult[]> 
       description: messages.getMessage('flags.max-depth.description'),
       default: 20,
     }),
+    verbose: Flags.boolean({
+      summary: 'Show each individual path. By default shows only counts.',
+      default: false,
+    }),
   };
 
   public async run(): Promise<PathsResult | PathsResult[]> {
     const { flags } = await this.parse(AgencyPaths);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
-    try {
-      const files = resolveTargetFiles({
-        file: flags.file,
-        scanPath: flags.path,
-        dataDir: this.config.dataDir,
-      });
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      const results: PathsResult[] = [];
-
-      for (const filePath of files) {
-        if (files.length > 1) {
-          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
         }
+      })
+    );
 
-        const source = fs.readFileSync(filePath, 'utf-8');
-        const result = this.computePaths(source, flags['max-depth'], flags.format, ux, filePath);
+    const results: PathsResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
+
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
+      }
+
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
+      }
+
+      try {
+        const result = this.computePaths(fileRead.source, flags['max-depth'], flags.format, flags.verbose, ux, fileRead.filePath);
         results.push(result);
+      } catch (e) {
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
       }
-
-      return files.length === 1 ? results[0] : results;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.pathsFailure', [error.message]);
-      }
-      throw error;
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
-  private computePaths(source: string, maxDepth: number, format: string, ux: Ux, filePath: string): PathsResult {
+  private computePaths(source: string, maxDepth: number, format: string, verbose: boolean, ux: Ux, filePath: string): PathsResult {
     const graphJson: GraphExport = JSON.parse(graphLib.export_graph_json(source));
 
     const adjacency = new Map<string, { transitions: string[]; delegates: string[] }>();
@@ -160,14 +188,26 @@ export default class AgencyPaths extends SfCommand<PathsResult | PathsResult[]> 
 
     if (format === 'json') {
       this.log(JSON.stringify(result, null, 2));
+    } else if (verbose) {
+      this.displayVerbose(ux, result);
     } else {
-      this.displayPretty(ux, result);
+      this.displayCompact(result);
     }
 
     return result;
   }
 
-  private displayPretty(ux: Ux, result: PathsResult): void {
+  private displayCompact(result: PathsResult): void {
+    const cycles = result.paths.filter(p => p.has_cycle).length;
+    let line = `${ansis.cyan(String(result.total_paths))} paths`;
+    if (cycles > 0) line += `  ${ansis.dim('•')}  ${ansis.yellow(String(cycles))} cyclic`;
+    if (result.unreachable.length > 0) {
+      line += `  ${ansis.dim('•')}  ${ansis.yellow(String(result.unreachable.length))} unreachable`;
+    }
+    this.log(line);
+  }
+
+  private displayVerbose(ux: Ux, result: PathsResult): void {
     ux.styledHeader(`Execution Paths (${result.total_paths} total)`);
     this.log('');
 

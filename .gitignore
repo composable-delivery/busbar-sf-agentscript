@@ -13,6 +13,9 @@ node_modules/
 build/
 *.wasm
 
+# Reports
+agents-report.html
+
 # macOS
 .DS_Store
 

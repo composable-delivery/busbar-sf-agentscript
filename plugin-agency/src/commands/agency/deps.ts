@@ -112,28 +112,50 @@ export default class AgentscriptDeps extends SfCommand<DepsResult | DepsResult[]
       summary: messages.getMessage('flags.target-org.summary'),
       description: messages.getMessage('flags.target-org.description'),
     }),
+    verbose: Flags.boolean({
+      summary: 'Show full dependency tables. By default shows only a summary.',
+      default: false,
+    }),
   };
 
   public async run(): Promise<DepsResult | DepsResult[] | GroupedDepEntry[]> {
     const { flags } = await this.parse(AgentscriptDeps);
 
-    try {
-      const files = resolveTargetFiles({
-        file: flags.file,
-        scanPath: flags.path,
-        dataDir: this.config.dataDir,
-      });
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      const results: DepsResult[] = [];
-
-      for (const filePath of files) {
-        if (files.length > 1 && flags.group !== 'dependency') {
-          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
         }
+      })
+    );
 
-        const file = path.relative(process.cwd(), filePath);
-        const source = fs.readFileSync(filePath, 'utf-8');
+    const results: DepsResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
 
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
+      }
+
+      if (files.length > 1 && flags.group !== 'dependency') {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
+      }
+
+      try {
+        const { source } = fileRead;
         const report = graph.extract_dependencies(source) as DependencyReport;
         const ast = parser.parse_agent(source);
         const interfaces = this.extractActionInterfaces(ast);
@@ -163,7 +185,7 @@ export default class AgentscriptDeps extends SfCommand<DepsResult | DepsResult[]
         if (flags.group !== 'dependency') {
           if (flags.format === 'json') {
             this.log(JSON.stringify({ file, report, interfaces, summary }, null, 2));
-          } else if (flags.format === 'summary') {
+          } else if (flags.format === 'summary' || !flags.verbose) {
             this.displaySummary(summary);
           } else {
             this.displayTable(report, interfaces, flags.type as string);
@@ -180,25 +202,30 @@ export default class AgentscriptDeps extends SfCommand<DepsResult | DepsResult[]
         }
 
         results.push({ file, report, interfaces, summary });
+      } catch (e) {
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
       }
-
-      if (flags.group === 'dependency') {
-        const grouped = this.groupByDependency(results);
-        if (flags.format === 'json') {
-          this.log(JSON.stringify(grouped, null, 2));
-        } else {
-          this.displayGrouped(grouped);
-        }
-        return grouped;
-      }
-
-      return files.length === 1 ? results[0] : results;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.extractionFailure', [error.message]);
-      }
-      throw error;
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    if (flags.group === 'dependency') {
+      const grouped = this.groupByDependency(results);
+      if (flags.format === 'json') {
+        this.log(JSON.stringify(grouped, null, 2));
+      } else {
+        this.displayGrouped(grouped);
+      }
+      return grouped;
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
   private groupByDependency(results: DepsResult[]): GroupedDepEntry[] {

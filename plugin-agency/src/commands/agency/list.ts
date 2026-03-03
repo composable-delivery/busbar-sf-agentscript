@@ -53,25 +53,43 @@ export default class AgentscriptList extends SfCommand<ListResult | ListResult[]
   public async run(): Promise<ListResult | ListResult[]> {
     const { flags } = await this.parse(AgentscriptList);
 
-    try {
-      const files = resolveTargetFiles({
-        file: flags.file,
-        scanPath: flags.path,
-        dataDir: this.config.dataDir,
-      });
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      const results: ListResult[] = [];
-
-      for (const filePath of files) {
-        if (files.length > 1) {
-          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
         }
+      })
+    );
 
-        const source = fs.readFileSync(filePath, 'utf-8');
-        const ast = parser.parse_agent(source);
+    const results: ListResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
+
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
+      }
+
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
+      }
+
+      try {
+        const ast = parser.parse_agent(fileRead.source);
         const items = this.listItems(ast, flags.type);
 
-        const file = path.relative(process.cwd(), filePath);
         if (flags.format === 'json') {
           this.log(JSON.stringify({ file, type: flags.type, items }, null, 2));
         } else {
@@ -79,15 +97,20 @@ export default class AgentscriptList extends SfCommand<ListResult | ListResult[]
         }
 
         results.push({ file, type: flags.type, items });
+      } catch (e) {
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
       }
-
-      return files.length === 1 ? results[0] : results;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.listFailure', [error.message]);
-      }
-      throw error;
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
   private listItems(ast: any, type: string): string[] {

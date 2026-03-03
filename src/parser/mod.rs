@@ -206,7 +206,7 @@ use chumsky::prelude::*;
 use chumsky::recovery::skip_then_retry_until;
 
 use config::config_block;
-use connections::{connection_block, legacy_connections_block};
+use connections::{connection_block, connections_wrapper_block};
 use language::language_block;
 use system::system_block;
 use topics::{start_agent_block, topic_block};
@@ -364,6 +364,8 @@ enum TopLevelBlock {
     Topic(Spanned<TopicBlock>),
     Language(Spanned<LanguageBlock>),
     Connection(Spanned<ConnectionBlock>),
+    /// Multiple connections from a `connections:` wrapper block.
+    Connections(Vec<Spanned<ConnectionBlock>>),
 }
 
 /// Parse a complete agent file.
@@ -383,36 +385,22 @@ fn agent_file_parser<'tokens, 'src: 'tokens>() -> impl Parser<
         just(Token::System).ignored(),
         just(Token::Language).ignored(),
         just(Token::Connection).ignored(),
+        just(Token::Connections).ignored(),
     ));
 
     // Parse noise once, then dispatch on the block type.
     // This avoids redundantly parsing skip_toplevel_noise() for each alternative.
     skip_toplevel_noise()
-        .ignore_then(
-            choice((
-                config_block().map(TopLevelBlock::Config),
-                variables_block().map(TopLevelBlock::Variables),
-                system_block().map(TopLevelBlock::System),
-                start_agent_block().map(TopLevelBlock::StartAgent),
-                topic_block().map(TopLevelBlock::Topic),
-                language_block().map(TopLevelBlock::Language),
-                connection_block().map(TopLevelBlock::Connection),
-            ))
-            .or(legacy_connections_block().map(|_| {
-                // This shouldn't be reached since legacy_connections emits an error,
-                // but we need to return something for type checking
-                TopLevelBlock::Config(Spanned::new(
-                    ConfigBlock {
-                        agent_name: Spanned::new("error".to_string(), 0..0),
-                        agent_label: None,
-                        description: None,
-                        agent_type: None,
-                        default_agent_user: None,
-                    },
-                    0..0,
-                ))
-            })),
-        )
+        .ignore_then(choice((
+            config_block().map(TopLevelBlock::Config),
+            variables_block().map(TopLevelBlock::Variables),
+            system_block().map(TopLevelBlock::System),
+            start_agent_block().map(TopLevelBlock::StartAgent),
+            topic_block().map(TopLevelBlock::Topic),
+            language_block().map(TopLevelBlock::Language),
+            connection_block().map(TopLevelBlock::Connection),
+            connections_wrapper_block().map(TopLevelBlock::Connections),
+        )))
         .recover_with(skip_then_retry_until(any().ignored(), recovery_until))
         .repeated()
         .collect::<Vec<_>>()
@@ -430,6 +418,7 @@ fn agent_file_parser<'tokens, 'src: 'tokens>() -> impl Parser<
                     TopLevelBlock::Topic(t) => file.topics.push(t),
                     TopLevelBlock::Language(l) => file.language = Some(l),
                     TopLevelBlock::Connection(c) => file.connections.push(c),
+                    TopLevelBlock::Connections(cs) => file.connections.extend(cs),
                 }
             }
 

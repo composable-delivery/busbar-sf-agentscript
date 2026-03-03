@@ -77,26 +77,50 @@ export default class AgentscriptActions extends SfCommand<ActionsResult | Action
       options: ['all', 'flow', 'apex', 'prompt'] as const,
       default: 'all',
     })(),
+    verbose: Flags.boolean({
+      summary: 'Show full parameter details per action. By default shows only the summary table.',
+      default: false,
+    }),
   };
 
   public async run(): Promise<ActionsResult | ActionsResult[]> {
     const { flags } = await this.parse(AgentscriptActions);
 
-    try {
-      const files = resolveTargetFiles({
-        file: flags.file,
-        scanPath: flags.path,
-        dataDir: this.config.dataDir,
-      });
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      const results: ActionsResult[] = [];
-
-      for (const filePath of files) {
-        if (files.length > 1) {
-          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
         }
+      })
+    );
 
-        const source = fs.readFileSync(filePath, 'utf-8');
+    const results: ActionsResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
+
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
+      }
+
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
+      }
+
+      try {
+        const { source } = fileRead;
         const ast = parser.parse_agent(source);
         const actions = this.extractActions(ast);
 
@@ -112,7 +136,7 @@ export default class AgentscriptActions extends SfCommand<ActionsResult | Action
 
         switch (flags.format) {
           case 'json':
-            this.log(JSON.stringify({ actions: filteredActions, summary }, null, 2));
+            this.log(JSON.stringify({ file, actions: filteredActions, summary }, null, 2));
             break;
           case 'typescript':
             this.outputTypeScript(filteredActions);
@@ -121,19 +145,28 @@ export default class AgentscriptActions extends SfCommand<ActionsResult | Action
             this.outputMarkdown(filteredActions, summary);
             break;
           default:
-            this.outputTable(filteredActions, summary);
+            if (flags.verbose) {
+              this.outputTable(filteredActions, summary);
+            } else {
+              this.outputCompact(filteredActions, summary);
+            }
         }
 
-        results.push({ file: path.relative(process.cwd(), filePath), actions: filteredActions, summary });
+        results.push({ file, actions: filteredActions, summary });
+      } catch (e) {
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
       }
-
-      return files.length === 1 ? results[0] : results;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.extractionFailure', [error.message]);
-      }
-      throw error;
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
   private extractActions(ast: any): ActionInterface[] {
@@ -260,6 +293,30 @@ export default class AgentscriptActions extends SfCommand<ActionsResult | Action
       counts[value] = (counts[value] || 0) + 1;
     }
     return counts;
+  }
+
+  private outputCompact(actions: ActionInterface[], summary: { total: number; byTargetType: { [key: string]: number } }): void {
+    const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
+    if (summary.total === 0) {
+      this.log(ansis.dim('  (no actions)'));
+      return;
+    }
+    const byType = Object.entries(summary.byTargetType)
+      .map(([type, count]) => `${count} ${this.colorizeTargetType(type)}`)
+      .join('  ');
+    this.log(`${ansis.bold(String(summary.total))} actions  ${ansis.dim('•')}  ${byType}`);
+    ux.table({
+      data: actions.map(a => ({
+        action: ansis.bold(a.name),
+        target: this.colorizeTargetType(a.targetType) + ' ' + ansis.dim(a.targetName),
+        location: ansis.dim(a.location),
+      })),
+      columns: [
+        { key: 'action', name: 'Action' },
+        { key: 'target', name: 'Target' },
+        { key: 'location', name: 'Location' },
+      ],
+    });
   }
 
   private outputTable(actions: ActionInterface[], summary: { total: number; byTargetType: { [key: string]: number }; byLocation: { [key: string]: number } }): void {

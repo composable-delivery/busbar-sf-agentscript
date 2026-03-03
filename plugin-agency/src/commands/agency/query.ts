@@ -89,22 +89,41 @@ export default class AgentscriptQuery extends SfCommand<QueryResult | QueryResul
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
     const queryPath = args.queryPath as string;
 
-    try {
-      const files = resolveTargetFiles({
-        file: flags.file,
-        scanPath: flags.path,
-        dataDir: this.config.dataDir,
-      });
+    const files = resolveTargetFiles({
+      file: flags.file,
+      scanPath: flags.path,
+      dataDir: this.config.dataDir,
+    });
 
-      const results: QueryResult[] = [];
-
-      for (const filePath of files) {
-        if (files.length > 1) {
-          this.log(ansis.bold.dim(`\n─── ${path.relative(process.cwd(), filePath)} ───`));
+    // Read all files in parallel
+    const fileReads = await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const source = await fs.promises.readFile(filePath, 'utf-8');
+          return { filePath, source, ok: true as const };
+        } catch (e) {
+          return { filePath, source: '', ok: false as const, error: e instanceof Error ? e.message : String(e) };
         }
+      })
+    );
 
-        const source = fs.readFileSync(filePath, 'utf-8');
-        const file = path.relative(process.cwd(), filePath);
+    const results: QueryResult[] = [];
+    const fileErrors: Array<{ file: string; error: string }> = [];
+
+    for (const fileRead of fileReads) {
+      const file = path.relative(process.cwd(), fileRead.filePath);
+
+      if (!fileRead.ok) {
+        fileErrors.push({ file, error: fileRead.error });
+        continue;
+      }
+
+      if (files.length > 1) {
+        this.log(ansis.bold.dim(`\n─── ${file} ───`));
+      }
+
+      try {
+        const { source } = fileRead;
         let result: unknown;
         let skipped = false;
 
@@ -140,15 +159,27 @@ export default class AgentscriptQuery extends SfCommand<QueryResult | QueryResul
           }
           results.push({ file, queryPath, result });
         }
+      } catch (e) {
+        if (files.length === 1) {
+          // Single-file: preserve original throw behavior
+          if (e instanceof Error) {
+            throw messages.createError('error.queryFailure', [e.message]);
+          }
+          throw e;
+        }
+        fileErrors.push({ file, error: e instanceof Error ? e.message : String(e) });
       }
-
-      return files.length === 1 ? results[0] : results;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw messages.createError('error.queryFailure', [error.message]);
-      }
-      throw error;
     }
+
+    if (fileErrors.length > 0) {
+      this.log('');
+      this.log(ansis.red.bold(`${fileErrors.length} file${fileErrors.length === 1 ? '' : 's'} failed:`));
+      for (const { file, error } of fileErrors) {
+        this.log(`  ${ansis.red('✗')} ${ansis.bold(file)}: ${ansis.dim(error)}`);
+      }
+    }
+
+    return files.length === 1 ? results[0] : results;
   }
 
   private queryTopic(source: string, name: string, ux: Ux, format: string): { topic: string; incoming: NodeRepr[]; outgoing: NodeRepr[] } {

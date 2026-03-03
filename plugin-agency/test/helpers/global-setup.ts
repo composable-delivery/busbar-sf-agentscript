@@ -7,7 +7,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export async function setup(): Promise<void> {
   const srcWasm = path.resolve(__dirname, '../../node_modules/@muselab/busbar-sf-agentscript/busbar_sf_agentscript_bg.wasm');
   const destWasm = path.resolve(__dirname, '../../src/busbar_sf_agentscript_bg.wasm');
-  if (fs.existsSync(srcWasm) && !fs.existsSync(destWasm)) {
+  if (fs.existsSync(srcWasm)) {
+    // Always overwrite so tests use the current node_modules WASM
     fs.copyFileSync(srcWasm, destWasm);
   }
 
