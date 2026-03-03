@@ -274,7 +274,7 @@ jobs:
           cache-dependency-path: tree-sitter-agentscript/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
+      - run: npm publish --access public --provenance --tag ${{ needs.validate.outputs.npm_tag }}
 
   publish-wasm-npm:
     name: Publish WASM to npm
@@ -292,7 +292,7 @@ jobs:
           path: dist/wasm/
       - name: Publish to npm
         working-directory: dist/wasm/
-        run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ needs.validate.outputs.npm_tag }}
 
   publish-sf-plugin-npm:
     name: Publish SF plugin to npm
@@ -336,7 +336,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Publish to npm
-        run: npm publish --access public --tag ${{ needs.validate.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ needs.validate.outputs.npm_tag }}
 
   github-release:
     name: Create GitHub Release
