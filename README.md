@@ -31,17 +31,24 @@ Install with the [Salesforce CLI](https://developer.salesforce.com/tools/salesfo
 sf plugins install sf-plugin-busbar-agency
 ```
 
+![SF plugin commands overview](docs/images/sf-plugin-commands.png)
+
 Validate an AgentScript file:
 
 ```sh
 sf agency validate --file my-agent.agent
 ```
 
+![Validation output](docs/images/sf-plugin-validate.png)
+
 Export the topic reference graph:
 
 ```sh
 sf agency graph --file my-agent.agent --format graphml --output graph.xml
+sf agency graph --file my-agent.agent --format html --output report.html
 ```
+
+![Interactive HTML graph report](docs/images/sf-plugin-graph.png)
 
 Extract action interface definitions:
 
