@@ -1,0 +1,33 @@
+{
+  "name": "@muselab/busbar-sf-agentscript",
+  "type": "module",
+  "description": "AgentScript parser, graph analysis, and LSP for Salesforce Agentforce",
+  "version": "0.0.2",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/composable-delivery/busbar-sf-agentscript"
+  },
+  "files": [
+    "busbar_sf_agentscript_bg.wasm",
+    "busbar_sf_agentscript.js",
+    "busbar_sf_agentscript.d.ts",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ],
+  "main": "busbar_sf_agentscript.js",
+  "types": "busbar_sf_agentscript.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "salesforce",
+    "agentscript",
+    "agentforce",
+    "parser",
+    "graph"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

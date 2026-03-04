@@ -4,8 +4,10 @@ debug/
 **/*.rs.bk
 *.pdb
 
-# WASM package output
-pkg/
+# WASM package output — track manifest/changelog but not generated binaries
+pkg/*
+!pkg/package.json
+!pkg/CHANGELOG.md
 **/dist/
 
 # Node / tree-sitter

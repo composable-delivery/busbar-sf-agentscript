@@ -1,0 +1,15 @@
+{
+  "name": "busbar-sf-agentscript-workspace",
+  "private": true,
+  "workspaces": [
+    "pkg",
+    "plugin-agency",
+    "tree-sitter-agentscript"
+  ],
+  "scripts": {
+    "release": "node .changeset/build.mjs && npx changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0"
+  }
+}

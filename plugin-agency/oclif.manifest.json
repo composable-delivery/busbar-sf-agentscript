@@ -791,6 +791,61 @@
         "query.js"
       ]
     },
+    "agency:tui": {
+      "aliases": [],
+      "args": {},
+      "description": "Launches a full-screen interactive TUI for browsing and analyzing AgentScript files.\nNavigate between files with arrow keys, switch between Graph, Validate, Deps, and Topics tabs.\n\nKeybindings: ↑↓ navigate | Tab switch tab | f focus files | r reload | q quit",
+      "examples": [
+        "Open TUI in current directory:\n<%= config.bin %> <%= command.id %>",
+        "Open a specific file:\n<%= config.bin %> <%= command.id %> --file path/to/agent.agent",
+        "Scan a specific directory:\n<%= config.bin %> <%= command.id %> --path ./force-app/agents"
+      ],
+      "flags": {
+        "flags-dir": {
+          "helpGroup": "GLOBAL",
+          "name": "flags-dir",
+          "summary": "Import flag values from a directory.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "Open directly to this file. If omitted, scans for .agent files in the directory.",
+          "name": "file",
+          "required": false,
+          "summary": "Path to a specific .agent file to open.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "path": {
+          "description": "Recursively searches this directory for .agent files when --file is not specified.",
+          "name": "path",
+          "summary": "Directory to scan for agent files (default: current directory).",
+          "default": ".",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "agency:tui",
+      "pluginAlias": "@muselab/sf-plugin-busbar-agency",
+      "pluginName": "@muselab/sf-plugin-busbar-agency",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Open an interactive terminal UI to explore AgentScript files.",
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "lib",
+        "commands",
+        "agency",
+        "tui.js"
+      ]
+    },
     "agency:validate": {
       "aliases": [],
       "args": {},

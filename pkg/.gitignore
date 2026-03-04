@@ -1,0 +1,5 @@
+# Ignore generated WASM binaries and JS bindings — only package.json and CHANGELOG.md are tracked
+*
+!.gitignore
+!package.json
+!CHANGELOG.md
