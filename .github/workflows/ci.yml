@@ -171,10 +171,9 @@ jobs:
           "
       - name: Install plugin dependencies
         run: |
-          # Link the locally built WASM into npm's global registry so
-          # plugin-agency can install it by name+version without modifying package.json
-          (cd pkg && npm link)
-          (cd plugin-agency && npm link @muselab/busbar-sf-agentscript && npm install)
+          # Run workspace-aware install from root — npm automatically links
+          # the locally built pkg/ into plugin-agency/node_modules/
+          npm install
       - name: Build SF plugin
         working-directory: plugin-agency/
         run: npm run build
