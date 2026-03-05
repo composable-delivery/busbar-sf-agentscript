@@ -303,6 +303,311 @@ topic topic_b:
     }
 
     #[test]
+    fn test_find_action_invokers() {
+        // reasoning action `do_lookup` invokes action def `lookup`; find_action_invokers
+        // should return the reasoning action node.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      lookup:
+         description: "Look up a record"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            name: string
+               description: "Record name"
+         target: "flow://Lookup"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_lookup: @actions.lookup
+            description: "Perform the lookup"
+"#;
+        let graph = parse_and_build(source);
+        let action_idx = graph.get_action_def("main", "lookup").expect("action def 'lookup' not found");
+        let invokers = graph.find_action_invokers(action_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker of 'lookup'");
+
+        // The invoker should be the reasoning action node
+        let invoker_node = graph.get_node(invokers.nodes[0]).expect("invoker node missing");
+        assert!(invoker_node.is_reasoning_action(), "Expected invoker to be a reasoning action");
+        assert_eq!(invoker_node.name(), Some("do_lookup"));
+    }
+
+    #[test]
+    fn test_find_variable_readers() {
+        // reasoning action `do_query` reads @variables.record_id via a `with` clause;
+        // find_variable_readers should return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   record_id: mutable string = ""
+      description: "The record to look up"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      fetch:
+         description: "Fetch a record"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            result: string
+               description: "Fetched result"
+         target: "flow://Fetch"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_query: @actions.fetch
+            description: "Query the record"
+            with id=@variables.record_id
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("record_id").expect("variable 'record_id' not found");
+        let readers = graph.find_variable_readers(var_idx);
+        assert_eq!(readers.len(), 1, "Expected exactly 1 reader of 'record_id'");
+
+        let reader_node = graph.get_node(readers.nodes[0]).expect("reader node missing");
+        assert!(reader_node.is_reasoning_action(), "Expected reader to be a reasoning action");
+        assert_eq!(reader_node.name(), Some("do_query"));
+    }
+
+    #[test]
+    fn test_find_variable_writers() {
+        // reasoning action `update_count` writes @variables.turn_count via a `set` clause;
+        // find_variable_writers should return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   turn_count: mutable integer = 0
+      description: "Number of turns taken"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      increment:
+         description: "Increment the counter"
+         outputs:
+            new_count: integer
+               description: "Updated counter"
+         target: "flow://Increment"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         update_count: @actions.increment
+            description: "Track turn count"
+            set @variables.turn_count = @outputs.new_count
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("turn_count").expect("variable 'turn_count' not found");
+        let writers = graph.find_variable_writers(var_idx);
+        assert_eq!(writers.len(), 1, "Expected exactly 1 writer of 'turn_count'");
+
+        let writer_node = graph.get_node(writers.nodes[0]).expect("writer node missing");
+        assert!(writer_node.is_reasoning_action(), "Expected writer to be a reasoning action");
+        assert_eq!(writer_node.name(), Some("update_count"));
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_and_action_defs() {
+        // A topic with two action definitions and two reasoning actions; both getters should
+        // return exactly the items belonging to that topic.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_orders: @utils.transition to @topic.orders
+            description: "Go to orders"
+
+topic orders:
+   description: "Order management"
+
+   actions:
+      create_order:
+         description: "Create a new order"
+         inputs:
+            customer_id: string
+               description: "Customer ID"
+         outputs:
+            order_id: string
+               description: "New order ID"
+         target: "flow://CreateOrder"
+      cancel_order:
+         description: "Cancel an order"
+         inputs:
+            order_id: string
+               description: "Order ID"
+         target: "flow://CancelOrder"
+
+   reasoning:
+      instructions: "Manage orders"
+      actions:
+         create: @actions.create_order
+            description: "Place a new order"
+         cancel: @actions.cancel_order
+            description: "Cancel an order"
+"#;
+        let graph = parse_and_build(source);
+
+        // Two action definitions belong to topic "orders"
+        let action_defs = graph.get_topic_action_defs("orders");
+        assert_eq!(action_defs.len(), 2, "Expected 2 action defs in topic 'orders'");
+
+        // Two reasoning actions belong to topic "orders"
+        let reasoning_actions = graph.get_topic_reasoning_actions("orders");
+        assert_eq!(reasoning_actions.len(), 2, "Expected 2 reasoning actions in topic 'orders'");
+
+        // Neither getter should return nodes for a non-existent topic
+        assert!(
+            graph.get_topic_action_defs("nonexistent").is_empty(),
+            "Expected no action defs for unknown topic"
+        );
+        assert!(
+            graph.get_topic_reasoning_actions("nonexistent").is_empty(),
+            "Expected no reasoning actions for unknown topic"
+        );
+    }
+
+    #[test]
+    fn test_find_usages_and_dependencies_for_reasoning_action() {
+        // find_dependencies(reasoning_action) should include the action def it invokes.
+        // find_usages(action_def) should return the reasoning action node (same relationship,
+        // viewed from the other direction).
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_status:
+         description: "Get order status"
+         inputs:
+            order_id: string
+               description: "Order identifier"
+         outputs:
+            status: string
+               description: "Status value"
+         target: "flow://GetStatus"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         check_status: @actions.get_status
+            description: "Check the current status"
+"#;
+        let graph = parse_and_build(source);
+        let action_def_idx = graph
+            .get_action_def("main", "get_status")
+            .expect("action def 'get_status' not found");
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_status")
+            .expect("reasoning action 'check_status' not found");
+
+        // find_dependencies of the reasoning action must include the action def
+        let deps = graph.find_dependencies(reasoning_action_idx);
+        assert!(
+            deps.nodes.contains(&action_def_idx),
+            "Expected 'check_status' to depend on 'get_status'"
+        );
+
+        // find_usages of the action def must include the reasoning action
+        let usages = graph.find_usages(action_def_idx);
+        assert!(
+            usages.nodes.contains(&reasoning_action_idx),
+            "Expected 'get_status' to be used by 'check_status'"
+        );
+    }
+
+    #[test]
+    fn test_topic_execution_order_returns_none_for_cyclic_graph() {
+        // A cycle between two topics should cause topic_execution_order() to return None
+        // because topological sort fails on a cyclic directed graph.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Back to A — creates a cycle"
+"#;
+        let graph = parse_and_build(source);
+        let order = graph.topic_execution_order();
+        assert!(
+            order.is_none(),
+            "Expected None for topic_execution_order() when graph contains a cycle"
+        );
+    }
+
+    #[test]
     fn test_stats_counts_nodes_correctly() {
         // Verify that stats() correctly counts topics, action defs, and variables.
         let source = r#"config:
