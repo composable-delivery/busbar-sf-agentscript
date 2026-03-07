@@ -2,7 +2,7 @@
   "name": "@muselab/busbar-sf-agentscript",
   "type": "module",
   "description": "AgentScript parser, graph analysis, and LSP for Salesforce Agentforce",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
