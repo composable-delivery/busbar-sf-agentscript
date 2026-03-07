@@ -347,4 +347,228 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Shared source with one action def and one reasoning action that invokes it,
+    /// plus variables that the reasoning action reads and writes.
+    fn invoke_and_variable_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+variables:
+   input_val: mutable string = ""
+      description: "Input to pass to the action"
+   output_val: mutable string = ""
+      description: "Output captured from the action"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_data:
+         description: "Retrieve data"
+         inputs:
+            val: string
+               description: "Input value"
+         outputs:
+            result: string
+               description: "Returned result"
+         target: "flow://GetData"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         fetch: @actions.get_data
+            description: "Fetch data using the input variable"
+            with val=@variables.input_val
+            set @variables.output_val = @outputs.result
+"#
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // The reasoning action `fetch` in topic `main` targets @actions.get_data, so
+        // find_action_invokers(get_data) must return the `fetch` reasoning action node.
+        let graph = parse_and_build(invoke_and_variable_source());
+        let action_def = graph
+            .get_action_def("main", "get_data")
+            .expect("get_data action def not found");
+        let reasoning_action = graph
+            .get_reasoning_action("main", "fetch")
+            .expect("fetch reasoning action not found");
+
+        let invokers = graph.find_action_invokers(action_def);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker of get_data");
+        assert_eq!(
+            invokers.nodes[0], reasoning_action,
+            "Expected the `fetch` reasoning action to be the invoker"
+        );
+    }
+
+    #[test]
+    fn test_find_action_invokers_empty_when_not_invoked() {
+        // An action def that is defined but not referenced by any reasoning action
+        // must return an empty QueryResult from find_action_invokers.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      unused_action:
+         description: "Never called"
+         target: "flow://Unused"
+
+   reasoning:
+      instructions: "Help"
+"#;
+        let graph = parse_and_build(source);
+        let action_def = graph
+            .get_action_def("main", "unused_action")
+            .expect("unused_action not found");
+
+        let invokers = graph.find_action_invokers(action_def);
+        assert!(
+            invokers.is_empty(),
+            "Expected no invokers for an action def that is never referenced"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_readers_returns_reader() {
+        // The `fetch` reasoning action passes @variables.input_val via a `with` clause,
+        // creating a Reads edge.  find_variable_readers(input_val) must return it.
+        let graph = parse_and_build(invoke_and_variable_source());
+        let var_idx = graph
+            .get_variable("input_val")
+            .expect("input_val variable not found");
+        let reasoning_action = graph
+            .get_reasoning_action("main", "fetch")
+            .expect("fetch reasoning action not found");
+
+        let readers = graph.find_variable_readers(var_idx);
+        assert!(!readers.is_empty(), "Expected at least one reader of input_val");
+        assert!(
+            readers.nodes.contains(&reasoning_action),
+            "Expected the `fetch` reasoning action to be a reader of input_val"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_writers_returns_writer() {
+        // The `fetch` reasoning action captures the output into @variables.output_val
+        // via a `set` clause, creating a Writes edge.  find_variable_writers must
+        // return the `fetch` node.
+        let graph = parse_and_build(invoke_and_variable_source());
+        let var_idx = graph
+            .get_variable("output_val")
+            .expect("output_val variable not found");
+        let reasoning_action = graph
+            .get_reasoning_action("main", "fetch")
+            .expect("fetch reasoning action not found");
+
+        let writers = graph.find_variable_writers(var_idx);
+        assert!(!writers.is_empty(), "Expected at least one writer of output_val");
+        assert!(
+            writers.nodes.contains(&reasoning_action),
+            "Expected the `fetch` reasoning action to be a writer of output_val"
+        );
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_returns_all() {
+        // A topic with two reasoning actions must have both returned by
+        // get_topic_reasoning_actions.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      alpha:
+         description: "Alpha"
+         target: "flow://Alpha"
+      beta:
+         description: "Beta"
+         target: "flow://Beta"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_alpha: @actions.alpha
+            description: "Run alpha"
+         do_beta: @actions.beta
+            description: "Run beta"
+"#;
+        let graph = parse_and_build(source);
+        let actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(
+            actions.len(),
+            2,
+            "Expected 2 reasoning actions in topic `main`, got {}",
+            actions.len()
+        );
+    }
+
+    #[test]
+    fn test_get_topic_action_defs_returns_all() {
+        // A topic with three action definitions must have all three returned by
+        // get_topic_action_defs, and none from a different topic.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      first:
+         description: "First"
+         target: "flow://First"
+      second:
+         description: "Second"
+         target: "flow://Second"
+      third:
+         description: "Third"
+         target: "flow://Third"
+
+   reasoning:
+      instructions: "Help"
+
+topic other:
+   description: "Other"
+
+   actions:
+      unrelated:
+         description: "Unrelated"
+         target: "flow://Unrelated"
+
+   reasoning:
+      instructions: "Other help"
+"#;
+        let graph = parse_and_build(source);
+        let main_defs = graph.get_topic_action_defs("main");
+        let other_defs = graph.get_topic_action_defs("other");
+
+        assert_eq!(
+            main_defs.len(),
+            3,
+            "Expected 3 action defs in topic `main`, got {}",
+            main_defs.len()
+        );
+        assert_eq!(
+            other_defs.len(),
+            1,
+            "Expected 1 action def in topic `other`, got {}",
+            other_defs.len()
+        );
+    }
 }
