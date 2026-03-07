@@ -153,7 +153,7 @@ jobs:
           cargo install wasm-bindgen-cli --version "$VERSION" --locked
       - name: Build WASM package
         run: |
-          WASM_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          WASM_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "busbar-sf-agentscript") | .version')
           cargo build --lib --release --target wasm32-unknown-unknown --features wasm,graph
           mkdir -p pkg
           wasm-bindgen --target web --out-dir pkg \
