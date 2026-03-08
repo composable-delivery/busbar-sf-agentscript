@@ -271,4 +271,98 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    // ─── Parser error-path tests ───────────────────────────────────────────────
+    //
+    // These tests verify that malformed AgentScript source code is rejected by
+    // parse_source() rather than silently accepted.
+
+    #[test]
+    fn test_parse_error_none_default_for_string_variable() {
+        // AgentScript only permits `= None` as a default for boolean variables.
+        // Using `= None` on a mutable string should be flagged as a parse error.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   greeting: mutable string = None
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error for `= None` on a non-boolean (string) variable, but got Ok"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_none_default_for_integer_variable() {
+        // `= None` is invalid for integer type — the validator should emit an error.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   count: mutable integer = None
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error for `= None` on a non-boolean (integer) variable, but got Ok"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_agent_name_not_a_string() {
+        // The `agent_name` field must be a quoted string literal.
+        // Providing a bare number (123) instead should cause a parse error.
+        let source = r#"config:
+   agent_name: 123
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error when agent_name is given as a number, not a quoted string"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_empty_inputs_block() {
+        // An `inputs:` block with no parameter entries is invalid.
+        // The parser validates this and emits "inputs block cannot be empty".
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   actions:
+      get_data:
+         description: "Gets data"
+         inputs:
+         target: "flow://GetData"
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error for an empty `inputs:` block in an action def"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_empty_reasoning_actions_block() {
+        // A `reasoning: actions:` block with no entries is invalid.
+        // The parser validates this and emits "reasoning actions block cannot be empty".
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error for an empty `actions:` block inside `reasoning:`"
+        );
+    }
 }
