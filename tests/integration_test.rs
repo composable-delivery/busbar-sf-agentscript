@@ -271,4 +271,23 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    #[test]
+    fn test_parse_error_on_unknown_variable_type() {
+        // "notavalidtype" is not a recognized AgentScript type keyword.
+        // The variable declaration parser must reject it and parse_source
+        // should surface at least one error rather than silently swallowing it.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   counter: mutable notavalidtype = 0
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected parse_source to return Err for unknown variable type 'notavalidtype', \
+             but got Ok"
+        );
+    }
 }
