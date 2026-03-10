@@ -347,4 +347,153 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_find_action_invokers_returns_invoking_reasoning_action() {
+        // A reasoning action that targets @actions.lookup creates an Invokes edge.
+        // find_action_invokers(lookup_def_idx) must return exactly that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      lookup:
+         description: "Look up a record"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            name: string
+               description: "Record name"
+         target: "flow://Lookup"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_lookup: @actions.lookup
+            description: "Perform the lookup"
+"#;
+        let graph = parse_and_build(source);
+        let lookup_def_idx =
+            graph.get_action_def("main", "lookup").expect("action def 'lookup' not found");
+        let do_lookup_idx = graph
+            .get_reasoning_action("main", "do_lookup")
+            .expect("reasoning action 'do_lookup' not found");
+
+        let invokers = graph.find_action_invokers(lookup_def_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker for 'lookup'");
+        assert_eq!(invokers.nodes[0], do_lookup_idx, "Expected 'do_lookup' to be the invoker");
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_counts_correctly() {
+        // topic_a has exactly one reasoning action (go_b); topic_b has none.
+        // get_topic_reasoning_actions returns only the actions for the named topic.
+        let graph = parse_and_build(two_topic_source());
+
+        let actions_a = graph.get_topic_reasoning_actions("topic_a");
+        assert_eq!(actions_a.len(), 1, "Expected 1 reasoning action in topic_a");
+
+        let actions_b = graph.get_topic_reasoning_actions("topic_b");
+        assert_eq!(actions_b.len(), 0, "Expected 0 reasoning actions in leaf topic_b");
+
+        let actions_none = graph.get_topic_reasoning_actions("nonexistent_topic");
+        assert!(actions_none.is_empty(), "Expected empty vec for a nonexistent topic name");
+    }
+
+    #[test]
+    fn test_get_topic_action_defs_counts_correctly() {
+        // A topic with two action defs should return exactly two entries.
+        // A topic name that does not exist should return an empty vec.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      lookup_order:
+         description: "Fetch order"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://LookupOrder"
+      cancel_order:
+         description: "Cancel order"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            success: boolean
+               description: "Whether cancellation succeeded"
+         target: "flow://CancelOrder"
+
+   reasoning:
+      instructions: "Help"
+"#;
+        let graph = parse_and_build(source);
+
+        let defs = graph.get_topic_action_defs("main");
+        assert_eq!(defs.len(), 2, "Expected 2 action defs in topic 'main'");
+
+        let empty = graph.get_topic_action_defs("other");
+        assert!(empty.is_empty(), "Expected 0 action defs for nonexistent topic 'other'");
+    }
+
+    #[test]
+    fn test_find_variable_writers_after_set_clause() {
+        // A reasoning action with `set @variables.step = 2` creates a Writes edge.
+        // find_variable_writers(step_idx) must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   step: mutable integer = 0
+      description: "Current step counter"
+
+topic main:
+   description: "Main"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         advance: @actions.advance
+            description: "Move to next step"
+            set @variables.step = 2
+"#;
+        let graph = parse_and_build(source);
+        let step_idx = graph.get_variable("step").expect("variable 'step' not found");
+        let advance_idx = graph
+            .get_reasoning_action("main", "advance")
+            .expect("reasoning action 'advance' not found");
+
+        let writers = graph.find_variable_writers(step_idx);
+        assert!(!writers.is_empty(), "Expected at least one writer for variable 'step'");
+        assert!(
+            writers.nodes.contains(&advance_idx),
+            "Expected reasoning action 'advance' to be a writer of 'step'"
+        );
+    }
+
+    #[test]
+    fn test_find_usages_returns_all_incoming_edges_for_topic() {
+        // topic_b is targeted by exactly one TransitionsTo edge from topic_a.
+        // find_usages(topic_b) must return [topic_a] — it returns ALL incoming
+        // edges (unlike find_incoming_transitions which filters by edge type).
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let usages = graph.find_usages(topic_b_idx);
+        assert_eq!(usages.len(), 1, "Expected exactly 1 usage of topic_b");
+        assert_eq!(
+            usages.nodes[0], topic_a_idx,
+            "Expected topic_a to be the sole user of topic_b"
+        );
+    }
 }
