@@ -68,6 +68,10 @@ path = "tests/test_reasoning_minimal.rs"
 name = "test_serializer_roundtrip"
 path = "tests/test_serializer_roundtrip.rs"
 
+[[test]]
+name = "test_validation"
+path = "tests/test_validation.rs"
+
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
 
