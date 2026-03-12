@@ -61,6 +61,10 @@ name = "integration"
 path = "tests/integration_test.rs"
 
 [[test]]
+name = "test_parser_errors"
+path = "tests/test_parser_errors.rs"
+
+[[test]]
 name = "test_reasoning_minimal"
 path = "tests/test_reasoning_minimal.rs"
 

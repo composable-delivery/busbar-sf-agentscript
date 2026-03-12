@@ -347,4 +347,102 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_find_action_invokers_returns_correct_node() {
+        // A reasoning action whose target is `@actions.get_status` creates a
+        // RefEdge::Invokes edge from the reasoning action node to the action-def
+        // node.  find_action_invokers(action_def) must return that reasoning
+        // action as the sole invoker.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_status:
+         description: "Get status"
+         inputs:
+            order_id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://GetStatus"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         get_status: @actions.get_status
+            description: "Get the status"
+"#;
+        let graph = parse_and_build(source);
+        let action_def_idx =
+            graph.get_action_def("main", "get_status").expect("action def not found");
+        let reasoning_idx =
+            graph.get_reasoning_action("main", "get_status").expect("reasoning action not found");
+
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(
+            invokers.len(),
+            1,
+            "Expected exactly 1 invoker of the get_status action def"
+        );
+        assert_eq!(
+            invokers.nodes[0], reasoning_idx,
+            "The invoker should be the get_status reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_writers_from_set_clause() {
+        // A `set @variables.order_status = @outputs.status` clause inside a
+        // reasoning action creates a RefEdge::Writes edge from the reasoning
+        // action node to the variable node.  find_variable_writers must return
+        // that reasoning action as the sole writer.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_status: mutable string = ""
+      description: "Order status"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_status:
+         description: "Get status"
+         inputs:
+            order_id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://GetStatus"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         get_status: @actions.get_status
+            description: "Get the status"
+            set @variables.order_status = @outputs.status
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("order_status").expect("variable not found");
+        let reasoning_idx =
+            graph.get_reasoning_action("main", "get_status").expect("reasoning action not found");
+
+        let writers = graph.find_variable_writers(var_idx);
+        assert_eq!(
+            writers.len(),
+            1,
+            "Expected exactly 1 writer of the order_status variable"
+        );
+        assert_eq!(
+            writers.nodes[0], reasoning_idx,
+            "The writer should be the get_status reasoning action"
+        );
+    }
 }
