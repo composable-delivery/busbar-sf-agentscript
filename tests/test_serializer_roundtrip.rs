@@ -216,3 +216,145 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_system_messages() {
+    // Covers the `system: messages:` sub-block — the serializer writes welcome and
+    // error messages but no roundtrip test verified they survive a parse→serialize→parse cycle.
+    let original = r#"config:
+   agent_name: "MsgAgent"
+
+system:
+   messages:
+      welcome: "Welcome! How can I help you today?"
+      error: "I'm sorry, something went wrong."
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block in serialized output");
+    assert!(serialized.contains("messages:"), "Missing messages sub-block in serialized output");
+    assert!(serialized.contains("welcome:"), "Missing welcome message in serialized output");
+    assert!(serialized.contains("error:"), "Missing error message in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let sys = reparsed.system.as_ref().expect("system block lost after roundtrip");
+    let msgs = sys.node.messages.as_ref().expect("messages sub-block lost after roundtrip");
+    assert!(msgs.node.welcome.is_some(), "welcome message lost after roundtrip");
+    assert!(msgs.node.error.is_some(), "error message lost after roundtrip");
+    assert!(
+        msgs.node.welcome.as_ref().unwrap().node.contains("Welcome"),
+        "welcome message text changed after roundtrip"
+    );
+}
+
+#[test]
+fn test_roundtrip_config_full_fields() {
+    // Covers the optional config fields agent_label and description — only
+    // agent_name was exercised in existing roundtrip tests.
+    let original = r#"config:
+   agent_name: "FullAgent"
+   agent_label: "Full Featured Agent"
+   description: "An agent with all config fields populated"
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("agent_label:"), "Missing agent_label in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let config = reparsed.config.as_ref().expect("config block lost after roundtrip");
+    assert_eq!(
+        config.node.agent_label.as_ref().expect("agent_label lost").node,
+        "Full Featured Agent",
+        "agent_label value changed after roundtrip"
+    );
+    assert!(
+        config.node.description.is_some(),
+        "config description lost after roundtrip"
+    );
+    assert_eq!(
+        config.node.agent_name.node, "FullAgent",
+        "agent_name changed after roundtrip"
+    );
+}
+
+#[test]
+fn test_roundtrip_linked_variable() {
+    // Covers the `linked` variable kind — existing roundtrip tests only exercised
+    // `mutable` variables.  Linked variables are read-only from external context
+    // and have no default value.
+    let original = r#"config:
+   agent_name: "LinkedAgent"
+
+variables:
+   session_id: linked string
+   user_email: linked string
+      description: "User email from context"
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("linked string"), "linked variable declaration missing from serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let vars = &reparsed.variables.as_ref().expect("variables block lost after roundtrip").node;
+    assert_eq!(vars.variables.len(), 2, "Expected 2 linked variables after roundtrip");
+
+    // Linked variables must not gain a default value during roundtrip.
+    for v in &vars.variables {
+        assert!(
+            v.node.default.is_none(),
+            "linked variable '{}' should have no default value after roundtrip",
+            v.node.name.node
+        );
+    }
+}
+
+#[test]
+fn test_roundtrip_multiple_topics() {
+    // Covers multi-topic agents — all existing roundtrip tests used a single topic.
+    // Verifies that topic ordering and names are preserved across serialization.
+    let original = r#"config:
+   agent_name: "MultiTopicAgent"
+
+topic greeter:
+   description: "Greets the user"
+   reasoning:
+      instructions: "Greet the user warmly"
+
+topic order_handler:
+   description: "Handles order inquiries"
+   reasoning:
+      instructions: "Help with order questions"
+
+topic escalation:
+   description: "Escalation handler"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("topic greeter:"), "greeter topic missing from serialized output");
+    assert!(serialized.contains("topic order_handler:"), "order_handler topic missing from serialized output");
+    assert!(serialized.contains("topic escalation:"), "escalation topic missing from serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(reparsed.topics.len(), 3, "Expected 3 topics after roundtrip");
+    let names: Vec<&str> = reparsed.topics.iter().map(|t| t.node.name.node.as_str()).collect();
+    assert!(names.contains(&"greeter"), "greeter topic missing after roundtrip");
+    assert!(names.contains(&"order_handler"), "order_handler topic missing after roundtrip");
+    assert!(names.contains(&"escalation"), "escalation topic missing after roundtrip");
+}
