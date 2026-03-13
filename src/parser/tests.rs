@@ -1000,3 +1000,44 @@ topic claims_processing:
     let file = result.unwrap();
     assert_eq!(file.topics.len(), 2, "Should have 2 topics");
 }
+
+// ============================================================================
+// Parser Error Path Tests
+// ============================================================================
+
+#[test]
+fn test_parse_error_agent_name_is_number() {
+    // agent_name requires a quoted string literal. A bare number literal is
+    // not a valid value here and must produce a parse error.
+    let source = "config:\n   agent_name: 123\n";
+    let result = parse(source);
+    assert!(
+        result.is_err(),
+        "Expected parse error when agent_name is a number literal, but parse succeeded"
+    );
+}
+
+#[test]
+fn test_parse_error_agent_name_unquoted_identifier() {
+    // agent_name requires a quoted string literal. An unquoted bare identifier
+    // is lexed as Token::Ident but is not accepted by spanned_string(), so
+    // a parse error must be returned.
+    let source = "config:\n   agent_name: MyAgent\n";
+    let result = parse(source);
+    assert!(
+        result.is_err(),
+        "Expected parse error when agent_name is an unquoted identifier, but parse succeeded"
+    );
+}
+
+#[test]
+fn test_parse_error_unclosed_string_literal() {
+    // An unclosed double-quoted string causes a lexer error, which is surfaced
+    // as a parse error via parse_with_errors returning a non-empty error list.
+    let source = "config:\n   agent_name: \"unclosed\n";
+    let result = parse(source);
+    assert!(
+        result.is_err(),
+        "Expected parse error for unclosed string literal, but parse succeeded"
+    );
+}
