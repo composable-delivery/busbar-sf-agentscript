@@ -271,4 +271,52 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    #[test]
+    fn test_parse_error_number_instead_of_string() {
+        // The config parser uses `spanned_string()` which only matches `StringLit` tokens.
+        // Supplying a number literal for `agent_name` must produce at least one parse error
+        // so that `parse_source` returns `Err`.
+        let source = "config:\n   agent_name: 42\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error when agent_name value is a number, not a string"
+        );
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message");
+    }
+
+    #[test]
+    fn test_parse_error_legacy_connections_block() {
+        // The plural `connections:` keyword is explicitly rejected by the parser with a
+        // helpful error message directing users to the singular `connection <name>:` form.
+        let source = "config:\n   agent_name: \"Test\"\n\nconnections:\n   foo: \"bar\"\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error for the legacy 'connections:' block syntax"
+        );
+        let errors = result.unwrap_err();
+        // The custom error message must mention the correct replacement syntax.
+        assert!(
+            errors.iter().any(|e| e.contains("connection")),
+            "Error messages should reference the correct 'connection' keyword, got: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn test_parse_error_topic_missing_colon() {
+        // `topic_block` expects `topic <ident>:`. Omitting the colon forces the parser's
+        // recovery to skip over the block and emit an error.
+        let source = "config:\n   agent_name: \"Test\"\n\ntopic main\n   description: \"Main\"\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected a parse error when a topic block is missing its colon"
+        );
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message");
+    }
 }

@@ -347,4 +347,150 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Source with an action definition, a reasoning action that invokes it, a variable that
+    /// is read via `with`, and a variable that is written via `set`.  Used by the four tests
+    /// below to verify the untested query helpers.
+    fn action_invoke_and_variable_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+variables:
+   customer_id: mutable string = ""
+   order_status: mutable string = ""
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_order:
+         description: "Get an order"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         check_order: @actions.get_order
+            description: "Check order"
+            with customer_id = @variables.customer_id
+            set @variables.order_status = "done"
+"#
+    }
+
+    #[test]
+    fn test_find_action_invokers() {
+        // `check_order` is a reasoning action that targets `@actions.get_order`.  The graph
+        // builder adds a `RefEdge::Invokes` edge from the reasoning action to the action def.
+        // `find_action_invokers(get_order_idx)` must return that reasoning action.
+        let graph = parse_and_build(action_invoke_and_variable_source());
+
+        let action_def_idx =
+            graph.get_action_def("main", "get_order").expect("get_order action def not found");
+        let invokers = graph.find_action_invokers(action_def_idx);
+
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker of get_order, got {}", invokers.len());
+
+        // Confirm the invoker is the reasoning action node (not the topic itself)
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_order")
+            .expect("check_order reasoning action not found");
+        assert_eq!(
+            invokers.nodes[0], reasoning_action_idx,
+            "Invoker should be the check_order reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_readers() {
+        // `check_order` has `with customer_id = @variables.customer_id`.  The graph builder
+        // traces the expression in the `with` clause and adds a `RefEdge::Reads` edge from
+        // the reasoning action to the variable.  `find_variable_readers(customer_id)` must
+        // return [check_order].
+        let graph = parse_and_build(action_invoke_and_variable_source());
+
+        let var_idx = graph.get_variable("customer_id").expect("customer_id variable not found");
+        let readers = graph.find_variable_readers(var_idx);
+
+        assert_eq!(readers.len(), 1, "Expected exactly 1 reader of customer_id, got {}", readers.len());
+
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_order")
+            .expect("check_order reasoning action not found");
+        assert_eq!(
+            readers.nodes[0], reasoning_action_idx,
+            "Reader should be the check_order reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_writers() {
+        // `check_order` has `set @variables.order_status = "done"`.  The graph builder adds
+        // a `RefEdge::Writes` edge from the reasoning action to the variable.
+        // `find_variable_writers(order_status)` must return [check_order].
+        let graph = parse_and_build(action_invoke_and_variable_source());
+
+        let var_idx =
+            graph.get_variable("order_status").expect("order_status variable not found");
+        let writers = graph.find_variable_writers(var_idx);
+
+        assert_eq!(writers.len(), 1, "Expected exactly 1 writer to order_status, got {}", writers.len());
+
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_order")
+            .expect("check_order reasoning action not found");
+        assert_eq!(
+            writers.nodes[0], reasoning_action_idx,
+            "Writer should be the check_order reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_usages_and_find_dependencies() {
+        // `find_usages(node)` returns all nodes with ANY incoming edge to `node`.
+        // `find_dependencies(node)` returns all nodes with ANY outgoing edge from `node`.
+        //
+        // For `check_order`, there are outgoing edges to:
+        //   - get_order   (Invokes)
+        //   - customer_id (Reads)
+        //   - order_status (Writes)
+        // So `find_dependencies(check_order)` must return at least 3 nodes.
+        //
+        // For `get_order`, only `check_order` has an incoming Invokes edge, so
+        // `find_usages(get_order)` must return exactly 1 node.
+        let graph = parse_and_build(action_invoke_and_variable_source());
+
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_order")
+            .expect("check_order reasoning action not found");
+        let deps = graph.find_dependencies(reasoning_action_idx);
+        assert!(
+            deps.len() >= 3,
+            "check_order should depend on at least 3 nodes (get_order, customer_id, order_status), got {}",
+            deps.len()
+        );
+
+        let action_def_idx =
+            graph.get_action_def("main", "get_order").expect("get_order not found");
+        let usages = graph.find_usages(action_def_idx);
+        assert_eq!(
+            usages.len(),
+            1,
+            "get_order action def should have exactly 1 usage (check_order), got {}",
+            usages.len()
+        );
+    }
 }
