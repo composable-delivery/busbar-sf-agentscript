@@ -216,3 +216,158 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_system_block_with_messages() {
+    // Covers the top-level `system:` block with both `instructions:` and the
+    // nested `messages:` sub-block (welcome/error strings).  Neither was
+    // roundtrip-tested before.
+    let original = r#"config:
+   agent_name: "SupportAgent"
+
+system:
+   instructions: "You are a helpful support agent."
+   messages:
+      welcome: "Hello! How can I help you today?"
+      error: "Something went wrong. Please try again."
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help the user"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block after serialization");
+    assert!(
+        serialized.contains("messages:"),
+        "Missing messages sub-block after serialization"
+    );
+    assert!(
+        serialized.contains("How can I help you today?"),
+        "Missing welcome message after serialization"
+    );
+    assert!(
+        serialized.contains("Something went wrong"),
+        "Missing error message after serialization"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let system = reparsed.system.as_ref().expect("system block lost after roundtrip");
+    assert!(
+        system.node.instructions.is_some(),
+        "system instructions lost after roundtrip"
+    );
+    let messages = system.node.messages.as_ref().expect("messages block lost after roundtrip");
+    assert!(
+        messages.node.welcome.is_some(),
+        "welcome message lost after roundtrip"
+    );
+    assert!(
+        messages.node.error.is_some(),
+        "error message lost after roundtrip"
+    );
+    assert_eq!(
+        messages.node.welcome.as_ref().unwrap().node,
+        "Hello! How can I help you today?"
+    );
+    assert_eq!(messages.node.error.as_ref().unwrap().node, "Something went wrong. Please try again.");
+}
+
+#[test]
+fn test_roundtrip_linked_variable_with_source() {
+    // Covers a `linked` variable with a `source:` reference annotation.
+    // The serializer writes both the `linked <type>` kind and the `source: @...`
+    // sub-entry; this roundtrip test verifies both survive serialization.
+    let original = r#"config:
+   agent_name: "ContextAgent"
+
+variables:
+   user_email: linked string
+      description: "Email of the logged-in user"
+      source: @messagingSession.userEmail
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Greet the user"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("linked string"), "linked variable kind lost after serialization");
+    assert!(
+        serialized.contains("source:"),
+        "source annotation lost after serialization"
+    );
+    assert!(
+        serialized.contains("userEmail"),
+        "source reference lost after serialization"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let vars = reparsed.variables.as_ref().expect("variables block lost after roundtrip");
+    assert_eq!(vars.node.variables.len(), 1);
+    let var = &vars.node.variables[0].node;
+    assert_eq!(var.name.node, "user_email");
+    // Verify the kind is still Linked
+    assert!(
+        matches!(var.kind, busbar_sf_agentscript::ast::VariableKind::Linked),
+        "Variable kind should remain Linked after roundtrip"
+    );
+    assert!(
+        var.source.is_some(),
+        "source annotation lost after roundtrip"
+    );
+}
+
+#[test]
+fn test_roundtrip_multiple_connection_blocks() {
+    // Covers the case where multiple independent `connection <name>:` blocks
+    // are present in the same file (e.g., different escalation channels).
+    // The serializer must write all of them and the parser must reconstruct
+    // all of them after a roundtrip.
+    let original = r#"config:
+   agent_name: "MultiChannelAgent"
+
+connection sms:
+   escalation_message: "Connecting you via SMS."
+   outbound_route_type: "OmniChannelFlow"
+   outbound_route_name: "SmsQueue"
+
+connection live_chat:
+   escalation_message: "Connecting you to a live agent."
+   outbound_route_type: "OmniChannelFlow"
+   outbound_route_name: "ChatQueue"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help or escalate"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    assert_eq!(ast.connections.len(), 2, "Expected 2 connection blocks in original AST");
+
+    let serialized = serialize(&ast);
+    assert!(serialized.contains("connection sms:"), "Missing 'sms' connection after serialization");
+    assert!(
+        serialized.contains("connection live_chat:"),
+        "Missing 'live_chat' connection after serialization"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(
+        reparsed.connections.len(),
+        2,
+        "Expected 2 connection blocks after roundtrip, got {}",
+        reparsed.connections.len()
+    );
+    let names: Vec<&str> =
+        reparsed.connections.iter().map(|c| c.node.name.node.as_str()).collect();
+    assert!(names.contains(&"sms"), "Missing 'sms' connection after roundtrip");
+    assert!(names.contains(&"live_chat"), "Missing 'live_chat' connection after roundtrip");
+}
