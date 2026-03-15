@@ -347,4 +347,114 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Source with a mutable variable and a topic whose reasoning action invokes an
+    /// action def and reads the variable via a `with` binding.
+    fn action_with_variable_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order ID"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Go to main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_order:
+         description: "Retrieve an order"
+         inputs:
+            id: string
+               description: "The order ID"
+         outputs:
+            status: string
+               description: "Current status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_get: @actions.get_order
+            description: "Get the order"
+            with id=@variables.order_id
+"#
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // do_get (reasoning action) invokes get_order (action def) via @actions.get_order.
+        // find_action_invokers(get_order_idx) must return exactly [do_get_reasoning_idx].
+        let graph = parse_and_build(action_with_variable_source());
+        let action_def_idx = graph
+            .get_action_def("main", "get_order")
+            .expect("get_order action def not found");
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "do_get")
+            .expect("do_get reasoning action not found");
+
+        let result = graph.find_action_invokers(action_def_idx);
+        assert_eq!(result.len(), 1, "Expected exactly 1 invoker of get_order");
+        assert_eq!(
+            result.nodes[0], reasoning_action_idx,
+            "Expected the invoker to be the do_get reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_readers_returns_reasoning_action() {
+        // do_get reads @variables.order_id through `with id=@variables.order_id`.
+        // find_variable_readers(order_id_idx) must return [do_get_reasoning_idx].
+        let graph = parse_and_build(action_with_variable_source());
+        let var_idx = graph.get_variable("order_id").expect("order_id variable not found");
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "do_get")
+            .expect("do_get reasoning action not found");
+
+        let result = graph.find_variable_readers(var_idx);
+        assert_eq!(result.len(), 1, "Expected exactly 1 reader of order_id");
+        assert_eq!(
+            result.nodes[0], reasoning_action_idx,
+            "Expected the reader to be the do_get reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_usages_returns_referencing_topic() {
+        // topic_b is only referenced by topic_a's outgoing @utils.transition.
+        // find_usages(topic_b_idx) should return [topic_a_idx].
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let result = graph.find_usages(topic_b_idx);
+        assert_eq!(result.len(), 1, "Expected exactly 1 referencing node for topic_b");
+        assert_eq!(
+            result.nodes[0], topic_a_idx,
+            "Expected topic_a to be the only user of topic_b"
+        );
+    }
+
+    #[test]
+    fn test_find_dependencies_includes_transition_target() {
+        // topic_a transitions to topic_b, so topic_b must appear in topic_a's
+        // find_dependencies() result.
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let result = graph.find_dependencies(topic_a_idx);
+        assert!(
+            result.nodes.contains(&topic_b_idx),
+            "Expected topic_b to appear in topic_a's dependency list"
+        );
+    }
 }
