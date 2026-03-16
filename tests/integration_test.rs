@@ -98,7 +98,7 @@ recipe_test!(
 
 recipe_test!(
     recipe_before_after_reasoning,
-    "../agent-script-recipes/force-app/main/03_reasoningMechanics/beforeAfterReasoning/aiAuthoringBundles/BeforeAfterReasoning/BeforeAfterReasoning.agent"
+    "../agent-script-recipes/force-app/main/03_reasoningMechanics/afterReasoning/aiAuthoringBundles/AfterReasoning/AfterReasoning.agent"
 );
 
 recipe_test!(
@@ -181,7 +181,7 @@ recipe_test!(
 
 recipe_test!(
     recipe_future_instruction_action_references,
-    "../agent-script-recipes/force-app/future_recipes/instructionActionReferences/aiAuthoringBundles/InstructionActionReferences/InstructionActionReferences.agent", ignore
+    "../agent-script-recipes/force-app/main/02_actionConfiguration/instructionActionReferences/aiAuthoringBundles/InstructionActionReferences/InstructionActionReferences.agent", ignore
 );
 
 recipe_test!(
@@ -191,7 +191,7 @@ recipe_test!(
 
 recipe_test!(
     recipe_future_safety_and_guardrails,
-    "../agent-script-recipes/force-app/future_recipes/safetyAndGuardrails/aiAuthoringBundles/SafetyAndGuardrails/SafetyAndGuardrails.agent", ignore
+    "../agent-script-recipes/force-app/main/04_architecturalPatterns/safetyAndGuardrails/aiAuthoringBundles/SafetyAndGuardrails/SafetyAndGuardrails.agent", ignore
 );
 
 recipe_test!(
