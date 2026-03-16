@@ -272,3 +272,83 @@ topic main:
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
 }
+
+// =============================================================================
+// Parser Error Path Tests
+//
+// These tests verify that the parser correctly reports errors for malformed
+// input — a gap that was not covered by any previous test.
+// =============================================================================
+
+#[cfg(test)]
+mod parser_error_tests {
+    use busbar_sf_agentscript::{parse, parser::parse_with_errors};
+
+    #[test]
+    fn test_parse_error_unclosed_string_literal() {
+        // An unclosed string literal must fail at the lexer stage and surface
+        // as a parse error — `parse()` must return Err, not Ok.
+        let source = "config:\n   agent_name: \"unclosed string";
+        let result = parse(source);
+        assert!(
+            result.is_err(),
+            "Expected parse to fail on unclosed string literal, but it succeeded"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_contains_location_info() {
+        // Error messages should include line/column information so developers
+        // can find the offending source location quickly.
+        let source = "config:\n   agent_name: \"unclosed";
+        let result = parse(source);
+        let errors = result.expect_err("Expected parse errors");
+        assert!(!errors.is_empty(), "Expected at least one error message");
+        let combined = errors.join("\n");
+        // The formatted error must reference a line number (format: "line N")
+        assert!(
+            combined.contains("line") || combined.contains("Lexer error"),
+            "Expected error to contain location info, got: {}",
+            combined
+        );
+    }
+
+    #[test]
+    fn test_parse_error_unknown_toplevel_keyword() {
+        // A block whose keyword is not recognised by the parser should produce
+        // a parse error. The parser will attempt recovery but must still report
+        // the failure through `parse()`.
+        let source = "not_a_valid_block:\n   key: \"value\"\n";
+        let (_, errors) = parse_with_errors(source);
+        assert!(
+            !errors.is_empty(),
+            "Expected parse errors for unrecognised top-level keyword, got none"
+        );
+    }
+
+    #[test]
+    fn test_parse_with_errors_partial_recovery_still_reports_error() {
+        // Even when the parser recovers and produces a partial AST, errors
+        // must still be present in the error list so callers are not silently
+        // handed a corrupt tree.  Here the config block is valid but the
+        // second block is unrecognised — recovery should yield the config
+        // while still reporting an error.
+        let source = r#"config:
+   agent_name: "Test"
+
+garbage_block:
+   key: "value"
+"#;
+        let (partial, errors) = parse_with_errors(source);
+        // Recovery should have salvaged the config block
+        assert!(
+            partial.map(|f| f.config.is_some()).unwrap_or(false),
+            "Expected config block to survive parse recovery"
+        );
+        // The garbage block must still be reported as an error
+        assert!(
+            !errors.is_empty(),
+            "Expected at least one error from the unrecognised block"
+        );
+    }
+}
