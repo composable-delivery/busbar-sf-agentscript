@@ -1,4 +1,6 @@
+use busbar_sf_agentscript::ast::{BinOp, UnaryOp};
 use busbar_sf_agentscript::parser;
+use busbar_sf_agentscript::Expr;
 
 #[test]
 fn test_reasoning_minimal() {
@@ -755,4 +757,165 @@ topic main:
             panic!("Parse failed with {} errors", errors.len());
         }
     }
+}
+
+// ============================================================================
+// Expression parsing edge cases — available_when field assertions
+//
+// The tests below verify that expression operators in `available when <expr>`
+// are parsed into the correct AST nodes.  Previous tests only checked
+// is_ok(); none asserted on the expression shape.
+// ============================================================================
+
+/// Helper: parse source, return the `available_when` Expr from the first
+/// reasoning action of the first topic.  Panics on parse failure.
+fn parse_first_available_when(source: &str) -> Expr {
+    let file = parser::parse(source).unwrap_or_else(|errs| {
+        for e in &errs {
+            eprintln!("{}", e);
+        }
+        panic!("Parse failed with {} errors", errs.len());
+    });
+    file.topics[0]
+        .node
+        .reasoning
+        .as_ref()
+        .expect("no reasoning block")
+        .node
+        .actions
+        .as_ref()
+        .expect("no reasoning actions")
+        .node[0]
+        .node
+        .available_when
+        .as_ref()
+        .expect("available_when is None")
+        .node
+        .clone()
+}
+
+#[test]
+fn test_available_when_ge_comparison_produces_binop_ge() {
+    // Covers: `>=` in `available when` produces BinOp::Ge (not Gt).
+    // Distinct from the existing `>` test in test_parse_full_file_with_all_blocks.
+    let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         advance: @actions.advance
+            description: "Advance step"
+            available when @variables.step >= 2
+"#;
+    let expr = parse_first_available_when(source);
+    assert!(
+        matches!(expr, Expr::BinOp { op: BinOp::Ge, .. }),
+        "Expected BinOp::Ge, got: {:?}",
+        expr
+    );
+}
+
+#[test]
+fn test_available_when_le_comparison_produces_binop_le() {
+    // Covers: `<=` in `available when` produces BinOp::Le.
+    let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         retry: @actions.retry
+            description: "Retry if under limit"
+            available when @variables.attempts <= 3
+"#;
+    let expr = parse_first_available_when(source);
+    assert!(
+        matches!(expr, Expr::BinOp { op: BinOp::Le, .. }),
+        "Expected BinOp::Le, got: {:?}",
+        expr
+    );
+}
+
+#[test]
+fn test_available_when_compound_and_not_produces_correct_ast() {
+    // Covers: `@variables.a and not @variables.b` produces BinOp::And whose
+    // right operand is UnaryOp::Not.  Tests both And and Not in one expression.
+    let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_thing: @actions.do_thing
+            description: "Do it"
+            available when @variables.ready and not @variables.done
+"#;
+    let expr = parse_first_available_when(source);
+    match expr {
+        Expr::BinOp { op: BinOp::And, right, .. } => {
+            assert!(
+                matches!(right.node, Expr::UnaryOp { op: UnaryOp::Not, .. }),
+                "Right operand of `and` should be UnaryOp::Not, got: {:?}",
+                right.node
+            );
+        }
+        other => panic!("Expected BinOp::And, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_available_when_ternary_expression_produces_ternary_node() {
+    // Covers: ternary expression `then if cond else other` in `available when`.
+    // No existing test asserts on Expr::Ternary.
+    // AgentScript ternary syntax: `<then_expr> if <condition> else <else_expr>`.
+    let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         show_option: @actions.show_option
+            description: "Conditionally visible"
+            available when @variables.active if @variables.enabled else False
+"#;
+    let expr = parse_first_available_when(source);
+    assert!(
+        matches!(expr, Expr::Ternary { .. }),
+        "Expected Expr::Ternary, got: {:?}",
+        expr
+    );
+}
+
+#[test]
+fn test_available_when_lt_comparison_produces_binop_lt() {
+    // Covers: `<` in `available when` produces BinOp::Lt (less-than).
+    // The `>` operator is implicitly exercised by integration tests but never
+    // directly asserted against the AST; `<` has zero assertion coverage.
+    let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+   reasoning:
+      instructions: "Help"
+      actions:
+         lookup: @actions.lookup
+            description: "Look up record"
+            available when @variables.retries < 5
+"#;
+    let expr = parse_first_available_when(source);
+    assert!(
+        matches!(expr, Expr::BinOp { op: BinOp::Lt, .. }),
+        "Expected BinOp::Lt, got: {:?}",
+        expr
+    );
 }
