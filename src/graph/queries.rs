@@ -347,4 +347,278 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_find_variable_readers_from_with_clause() {
+        // A reasoning action binds @variables.order_id via a `with` clause, which
+        // creates a Reads edge from the reasoning action to the variable node.
+        // find_variable_readers(variable) must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order identifier"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_order:
+         description: "Gets an order"
+         inputs:
+            id: string
+               description: "The ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_get: @actions.get_order
+            description: "Fetch order"
+            with id=@variables.order_id
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("order_id").expect("order_id not found");
+        let readers = graph.find_variable_readers(var_idx);
+        assert_eq!(
+            readers.len(),
+            1,
+            "Expected exactly 1 reader of order_id via with clause, got {}",
+            readers.len()
+        );
+        // The reader should be the reasoning action node, not the topic node
+        let reader_node = graph.get_node(readers.nodes[0]).expect("reader node missing");
+        assert!(
+            matches!(reader_node, crate::graph::RefNode::ReasoningAction { .. }),
+            "Expected reader to be a ReasoningAction, got {:?}",
+            reader_node
+        );
+    }
+
+    #[test]
+    fn test_find_variable_writers_from_set_clause() {
+        // A reasoning action writes to @variables.result via a `set` clause, which
+        // creates a Writes edge from the reasoning action to the variable node.
+        // find_variable_writers(variable) must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   result: mutable string = ""
+      description: "Captured result"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_data:
+         description: "Gets data"
+         outputs:
+            data: string
+               description: "The data"
+         target: "flow://GetData"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_get: @actions.get_data
+            description: "Fetch data"
+            set @variables.result = @outputs.data
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("result").expect("result not found");
+        let writers = graph.find_variable_writers(var_idx);
+        assert_eq!(
+            writers.len(),
+            1,
+            "Expected exactly 1 writer of result via set clause, got {}",
+            writers.len()
+        );
+        let writer_node = graph.get_node(writers.nodes[0]).expect("writer node missing");
+        assert!(
+            matches!(writer_node, crate::graph::RefNode::ReasoningAction { .. }),
+            "Expected writer to be a ReasoningAction, got {:?}",
+            writer_node
+        );
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // A reasoning action that targets @actions.get_order creates an Invokes edge
+        // from the reasoning action to the action def.
+        // find_action_invokers(action_def) must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_order:
+         description: "Gets an order"
+         inputs:
+            id: string
+               description: "The ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_get: @actions.get_order
+            description: "Perform the lookup"
+"#;
+        let graph = parse_and_build(source);
+        let action_def_idx =
+            graph.get_action_def("main", "get_order").expect("get_order action def not found");
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(
+            invokers.len(),
+            1,
+            "Expected exactly 1 invoker of get_order, got {}",
+            invokers.len()
+        );
+        let invoker_node = graph.get_node(invokers.nodes[0]).expect("invoker node missing");
+        assert!(
+            matches!(invoker_node, crate::graph::RefNode::ReasoningAction { .. }),
+            "Expected invoker to be a ReasoningAction, got {:?}",
+            invoker_node
+        );
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_returns_correct_count() {
+        // get_topic_reasoning_actions("main") should return exactly the two reasoning
+        // action nodes declared inside topic main.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         go_other: @utils.transition to @topic.other
+            description: "Go to other"
+         stay: @utils.transition to @topic.main
+            description: "Stay here"
+
+topic other:
+   description: "Other"
+"#;
+        let graph = parse_and_build(source);
+        let actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(
+            actions.len(),
+            2,
+            "Expected 2 reasoning actions in topic main, got {}",
+            actions.len()
+        );
+        // All returned nodes should be ReasoningAction variants
+        for idx in &actions {
+            let node = graph.get_node(*idx).expect("node missing");
+            assert!(
+                matches!(node, crate::graph::RefNode::ReasoningAction { .. }),
+                "Expected ReasoningAction, got {:?}",
+                node
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_topic_action_defs_returns_correct_defs() {
+        // get_topic_action_defs("main") should return exactly the two action def nodes
+        // declared in the actions block of topic main.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      fetch_a:
+         description: "Action A"
+         target: "flow://ActionA"
+      fetch_b:
+         description: "Action B"
+         target: "flow://ActionB"
+
+   reasoning:
+      instructions: "Help"
+"#;
+        let graph = parse_and_build(source);
+        let defs = graph.get_topic_action_defs("main");
+        assert_eq!(defs.len(), 2, "Expected 2 action defs in topic main, got {}", defs.len());
+        for idx in &defs {
+            let node = graph.get_node(*idx).expect("node missing");
+            assert!(
+                matches!(node, crate::graph::RefNode::ActionDef { .. }),
+                "Expected ActionDef, got {:?}",
+                node
+            );
+        }
+    }
+
+    #[test]
+    fn test_stats_total_definitions_and_total_edges() {
+        // total_definitions() sums topics + action_defs + reasoning_actions + variables +
+        // connections, and total_edges() sums transitions + invocations + reads + writes.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order ID"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_order:
+         description: "Gets order"
+         inputs:
+            id: string
+               description: "The ID"
+         outputs:
+            status: string
+               description: "Status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_get: @actions.get_order
+            description: "Lookup"
+"#;
+        let graph = parse_and_build(source);
+        let stats = graph.stats();
+
+        // 1 topic + 1 action def + 1 reasoning action + 1 variable = 4 definitions
+        let expected_defs = stats.topics + stats.action_defs + stats.reasoning_actions
+            + stats.variables
+            + stats.connections;
+        assert_eq!(
+            stats.total_definitions(),
+            expected_defs,
+            "total_definitions() should equal the sum of its parts"
+        );
+        assert_eq!(stats.total_definitions(), 4, "Expected 4 total definitions");
+
+        // total_edges() should equal the sum of its counted edge categories
+        let expected_edges = stats.transitions + stats.invocations + stats.reads + stats.writes;
+        assert_eq!(
+            stats.total_edges(),
+            expected_edges,
+            "total_edges() should equal the sum of its parts"
+        );
+        // The do_get reasoning action invokes get_order → at least 1 invocation
+        assert!(stats.invocations >= 1, "Expected at least 1 invocation edge");
+    }
 }
