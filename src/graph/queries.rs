@@ -347,4 +347,129 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Source with a topic that defines an action def and a reasoning action that
+    /// invokes it via `@actions.<name>`.  Used to test Invokes-edge queries.
+    fn invocation_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route to main"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_main: @utils.transition to @topic.main
+            description: "Enter main"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      lookup:
+         description: "Look up a record"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            name: string
+               description: "Record name"
+         target: "flow://Lookup"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_lookup: @actions.lookup
+            description: "Perform the lookup"
+"#
+    }
+
+    /// Source with two topics that form a cycle: topic_a → topic_b → topic_a.
+    fn cyclic_two_topic_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Back to A"
+"#
+    }
+
+    #[test]
+    fn test_find_usages_returns_referencing_nodes() {
+        // topic_b is referenced by topic_a's reasoning action via
+        // `@utils.transition to @topic.topic_b`.  find_usages(topic_b) should
+        // return at least that reasoning action node as an incoming edge source.
+        let graph = parse_and_build(two_topic_source());
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+        let usages = graph.find_usages(topic_b_idx);
+        assert!(
+            !usages.is_empty(),
+            "Expected at least one node referencing topic_b via an incoming edge"
+        );
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // The reasoning action `do_lookup` references `@actions.lookup`, creating
+        // a RefEdge::Invokes edge from the reasoning action node to the action-def
+        // node.  find_action_invokers(lookup_def) should return exactly that one
+        // reasoning action.
+        let graph = parse_and_build(invocation_source());
+        let lookup_idx = graph
+            .get_action_def("main", "lookup")
+            .expect("lookup action def not found");
+        let invokers = graph.find_action_invokers(lookup_idx);
+        assert_eq!(
+            invokers.len(),
+            1,
+            "Expected exactly 1 invoker for the lookup action def"
+        );
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_count() {
+        // topic 'main' defines exactly one reasoning action (`do_lookup`).
+        // get_topic_reasoning_actions("main") should return a vec of length 1.
+        let graph = parse_and_build(invocation_source());
+        let actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(
+            actions.len(),
+            1,
+            "Expected 1 reasoning action in topic 'main'"
+        );
+    }
+
+    #[test]
+    fn test_topic_execution_order_returns_none_for_cyclic_graph() {
+        // topic_a → topic_b → topic_a forms a cycle; topological sort is
+        // impossible for a directed cyclic graph.  topic_execution_order() must
+        // return None when the graph contains a cycle.
+        let graph = parse_and_build(cyclic_two_topic_source());
+        let order = graph.topic_execution_order();
+        assert!(
+            order.is_none(),
+            "Expected None for a cyclic graph, but topic_execution_order returned Some"
+        );
+    }
 }
