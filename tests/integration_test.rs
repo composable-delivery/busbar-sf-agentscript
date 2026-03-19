@@ -205,7 +205,7 @@ recipe_test!(
 
 #[cfg(test)]
 mod parser_unit_tests {
-    use busbar_sf_agentscript::{lexer, parse_source};
+    use busbar_sf_agentscript::{lexer, parse_source, parse_with_errors};
     use chumsky::prelude::*;
 
     #[test]
@@ -270,5 +270,46 @@ topic main:
             .map(|(t, _)| t.clone())
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
+    }
+
+    #[test]
+    fn test_parse_error_numeric_literal_for_agent_name() {
+        // The `agent_name` field expects a string literal (`"..."`).  A numeric
+        // literal (123) is a different token type that `spanned_string()` rejects,
+        // so the parser should fail and return `Err`.
+        let source = "config:\n   agent_name: 123\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected parse error for numeric agent_name, but parse succeeded"
+        );
+    }
+
+    #[test]
+    fn test_parse_error_topic_missing_name() {
+        // A `topic` keyword must be followed by an identifier (its name) and then
+        // a colon.  A bare `topic:` with the colon in the name position should
+        // trigger a parse error because `spanned_ident()` only matches `Ident`
+        // tokens, not `Colon`.
+        let source = "config:\n   agent_name: \"Test\"\n\ntopic:\n   description: \"No name\"\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected parse error for topic without a name, but parse succeeded"
+        );
+    }
+
+    #[test]
+    fn test_parse_with_errors_collects_errors_for_malformed_input() {
+        // `parse_with_errors` returns both a partial AST and an error list.
+        // For clearly invalid input the error list must be non-empty, confirming
+        // that error collection works independently of whether recovery produces
+        // a partial tree.
+        let source = "config:\n   agent_name: 999\n";
+        let (_partial, errors) = parse_with_errors(source);
+        assert!(
+            !errors.is_empty(),
+            "Expected at least one error message for malformed config input"
+        );
     }
 }

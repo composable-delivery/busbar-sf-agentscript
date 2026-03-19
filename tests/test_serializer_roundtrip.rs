@@ -216,3 +216,38 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_system_block() {
+    // Covers the `system:` block — global instructions and welcome/error message
+    // templates.  The serializer writes this block but no roundtrip test existed.
+    // Ensures all system block content survives a parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "SupportAgent"
+
+system:
+   instructions: "You are a helpful support agent."
+   messages:
+      welcome: "Hello! How can I help you today?"
+      error: "I encountered an issue. Please try again."
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block in serialized output");
+    assert!(serialized.contains("instructions:"), "Missing instructions in serialized output");
+    assert!(serialized.contains("welcome:"), "Missing welcome message in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized output");
+    assert!(reparsed.system.is_some(), "system block lost after roundtrip");
+    let sys = &reparsed.system.as_ref().unwrap().node;
+    assert!(sys.instructions.is_some(), "instructions lost after roundtrip");
+    assert!(sys.messages.is_some(), "messages block lost after roundtrip");
+    let messages = sys.messages.as_ref().unwrap();
+    assert!(messages.node.welcome.is_some(), "welcome message lost after roundtrip");
+    assert!(messages.node.error.is_some(), "error message lost after roundtrip");
+}
