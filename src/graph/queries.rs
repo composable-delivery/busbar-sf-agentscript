@@ -303,6 +303,144 @@ topic topic_b:
     }
 
     #[test]
+    fn test_find_variable_readers_via_with_clause() {
+        // A reasoning action that passes a variable via a `with` clause creates a
+        // RefEdge::Reads edge from the reasoning action to the variable.
+        // find_variable_readers() must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order identifier"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_order:
+         description: "Retrieve order details"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         fetch_order: @actions.get_order
+            description: "Fetch the order by ID"
+            with id = @variables.order_id
+"#;
+        let graph = parse_and_build(source);
+
+        let var_idx = graph.get_variable("order_id").expect("order_id variable not found");
+        let action_idx = graph
+            .get_reasoning_action("main", "fetch_order")
+            .expect("fetch_order reasoning action not found");
+
+        let readers = graph.find_variable_readers(var_idx);
+        assert_eq!(readers.len(), 1, "Expected exactly 1 reader for order_id");
+        assert_eq!(
+            readers.nodes[0], action_idx,
+            "Expected fetch_order reasoning action to be the reader"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_writers_via_set_clause() {
+        // A reasoning action that writes to a variable via a `set` clause creates a
+        // RefEdge::Writes edge from the reasoning action to the variable.
+        // find_variable_writers() must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   result_status: mutable string = ""
+      description: "Most-recent status value"
+
+topic main:
+   description: "Main"
+
+   actions:
+      get_status:
+         description: "Retrieve status from backend"
+         outputs:
+            status: string
+               description: "Current status"
+         target: "flow://GetStatus"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         check_status: @actions.get_status
+            description: "Check status and store result"
+            set @variables.result_status = @outputs.status
+"#;
+        let graph = parse_and_build(source);
+
+        let var_idx = graph.get_variable("result_status").expect("result_status variable not found");
+        let action_idx = graph
+            .get_reasoning_action("main", "check_status")
+            .expect("check_status reasoning action not found");
+
+        let writers = graph.find_variable_writers(var_idx);
+        assert_eq!(writers.len(), 1, "Expected exactly 1 writer for result_status");
+        assert_eq!(
+            writers.nodes[0], action_idx,
+            "Expected check_status reasoning action to be the writer"
+        );
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // A reasoning action whose target is `@actions.<name>` creates a
+        // RefEdge::Invokes edge from the reasoning action to the action definition.
+        // find_action_invokers() must return that reasoning action.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main"
+
+   actions:
+      lookup_data:
+         description: "Look up data from backend"
+         inputs:
+            id: string
+               description: "Record identifier"
+         outputs:
+            result: string
+               description: "Lookup result"
+         target: "flow://LookupData"
+
+   reasoning:
+      instructions: "Help"
+      actions:
+         do_lookup: @actions.lookup_data
+            description: "Perform the data lookup"
+"#;
+        let graph = parse_and_build(source);
+
+        let action_def_idx = graph
+            .get_action_def("main", "lookup_data")
+            .expect("lookup_data action def not found");
+        let reasoning_idx = graph
+            .get_reasoning_action("main", "do_lookup")
+            .expect("do_lookup reasoning action not found");
+
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker for lookup_data");
+        assert_eq!(
+            invokers.nodes[0], reasoning_idx,
+            "Expected do_lookup reasoning action to be the invoker"
+        );
+    }
+
+    #[test]
     fn test_stats_counts_nodes_correctly() {
         // Verify that stats() correctly counts topics, action defs, and variables.
         let source = r#"config:

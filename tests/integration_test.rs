@@ -271,4 +271,36 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    #[test]
+    fn test_parse_none_default_on_non_boolean_variable_returns_error() {
+        // `= None` is only a valid default for `boolean` types.  The parser's
+        // validate() callback emits a custom error when it appears on any other type
+        // (e.g. `integer`).  This test verifies that parse_source returns Err and
+        // that at least one error message mentions None or the boolean type
+        // restriction — covering a previously untested parser error path.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   counter: mutable integer = None
+      description: "Counter — None is not a valid default for integer"
+
+topic main:
+   description: "Main"
+"#;
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Expected parse_source to return Err for '= None' on a non-boolean type, got Ok"
+        );
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message");
+        // The validate() callback formats a message that includes "None" and "boolean"
+        assert!(
+            errors.iter().any(|e| e.contains("None") || e.contains("boolean")),
+            "Expected error message referencing None or boolean type, got: {:?}",
+            errors
+        );
+    }
 }
