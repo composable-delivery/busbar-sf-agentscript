@@ -182,6 +182,78 @@ topic main:
 }
 
 #[test]
+fn test_roundtrip_system_block_with_messages() {
+    // Covers the `system:` block with both a `messages:` sub-block (welcome + error)
+    // and a top-level `instructions:` entry.  Ensures all three fields survive a
+    // parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "SystemAgent"
+
+system:
+   messages:
+      welcome: "Welcome to our service!"
+      error: "Something went wrong. Please try again."
+   instructions: "You are a helpful assistant."
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block in serialized output");
+    assert!(serialized.contains("welcome"), "Missing welcome message key");
+    assert!(serialized.contains("error"), "Missing error message key");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let system = reparsed.system.as_ref().expect("system block lost after roundtrip");
+    let messages = system.node.messages.as_ref().expect("messages sub-block lost after roundtrip");
+    assert!(messages.node.welcome.is_some(), "welcome message lost after roundtrip");
+    assert!(messages.node.error.is_some(), "error message lost after roundtrip");
+    assert!(system.node.instructions.is_some(), "instructions lost after roundtrip");
+}
+
+#[test]
+fn test_roundtrip_linked_variable() {
+    // Covers the `linked` variable kind with a `source:` reference — the serializer
+    // handles it but no roundtrip test existed.  Ensures the kind, type, and source
+    // survive a parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "LinkedVarAgent"
+
+variables:
+   user_email: linked string
+      description: "User email injected from conversation context"
+      source: @messagingSession.userEmail
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("linked"), "Missing 'linked' keyword in serialized output");
+    assert!(serialized.contains("user_email"), "Missing variable name in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let vars = &reparsed.variables.as_ref().expect("variables block lost after roundtrip").node;
+    assert_eq!(vars.variables.len(), 1, "Expected exactly 1 variable after roundtrip");
+    let var = &vars.variables[0].node;
+    assert_eq!(
+        var.kind,
+        busbar_sf_agentscript::ast::VariableKind::Linked,
+        "Expected Linked variable kind after roundtrip"
+    );
+    assert_eq!(
+        var.ty.node,
+        busbar_sf_agentscript::Type::String,
+        "Expected String type after roundtrip"
+    );
+}
+
+#[test]
 fn test_roundtrip_before_and_after_reasoning() {
     // Covers `before_reasoning:` and `after_reasoning:` directive blocks inside a topic.
     // The serializer handles these blocks but no roundtrip test existed.
