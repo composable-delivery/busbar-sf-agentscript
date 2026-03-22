@@ -347,4 +347,202 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_topic_execution_order_returns_none_for_cyclic_graph() {
+        // A two-topic cycle (topic_a → topic_b → topic_a) cannot be topologically
+        // sorted.  topic_execution_order() must return None instead of panicking.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Back to A"
+"#;
+        let graph = parse_and_build(source);
+        let order = graph.topic_execution_order();
+        assert!(order.is_none(), "Expected None for cyclic graph, got: {:?}", order);
+    }
+
+    #[test]
+    fn test_find_action_invokers_via_reasoning_action() {
+        // A reasoning action references an action_def via @actions.get_order.
+        // find_action_invokers(action_def_idx) must return exactly that reasoning action
+        // node, confirming that the Invokes edge is correctly created and queryable.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_order:
+         description: "Retrieve an order"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         check_status: @actions.get_order
+            description: "Check order status"
+"#;
+        let graph = parse_and_build(source);
+
+        let action_def_idx = graph
+            .get_action_def("main", "get_order")
+            .expect("action def 'get_order' not found");
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "check_status")
+            .expect("reasoning action 'check_status' not found");
+
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker of get_order");
+        assert_eq!(
+            invokers.nodes[0], reasoning_action_idx,
+            "Invoker should be the 'check_status' reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_find_variable_readers_and_writers() {
+        // Tests both find_variable_readers() and find_variable_writers() in a single
+        // scenario: a reasoning action reads order_id via a `with` clause and writes
+        // it via a `set` clause.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Current order ID"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_order:
+         description: "Retrieve an order"
+         inputs:
+            ref_id: string
+               description: "Reference ID"
+         outputs:
+            new_id: string
+               description: "Resolved order ID"
+         target: "flow://GetOrder"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         process_order: @actions.get_order
+            description: "Process order"
+            with ref_id = @variables.order_id
+            set @variables.order_id = "updated"
+"#;
+        let graph = parse_and_build(source);
+
+        let var_idx = graph
+            .get_variable("order_id")
+            .expect("variable 'order_id' not found");
+        let reasoning_action_idx = graph
+            .get_reasoning_action("main", "process_order")
+            .expect("reasoning action 'process_order' not found");
+
+        // The `with ref_id = @variables.order_id` clause creates a Reads edge.
+        let readers = graph.find_variable_readers(var_idx);
+        assert_eq!(readers.len(), 1, "Expected exactly 1 reader of order_id");
+        assert_eq!(
+            readers.nodes[0], reasoning_action_idx,
+            "Reader should be the 'process_order' reasoning action"
+        );
+
+        // The `set @variables.order_id = "updated"` clause creates a Writes edge.
+        let writers = graph.find_variable_writers(var_idx);
+        assert_eq!(writers.len(), 1, "Expected exactly 1 writer of order_id");
+        assert_eq!(
+            writers.nodes[0], reasoning_action_idx,
+            "Writer should be the 'process_order' reasoning action"
+        );
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_and_action_defs() {
+        // get_topic_reasoning_actions() and get_topic_action_defs() must return only
+        // the nodes that belong to the named topic and return empty for unknown topics.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      act_one:
+         description: "First action"
+         inputs:
+            x: string
+               description: "Input"
+         outputs:
+            y: string
+               description: "Output"
+         target: "flow://ActOne"
+      act_two:
+         description: "Second action"
+         inputs:
+            x: string
+               description: "Input"
+         outputs:
+            y: string
+               description: "Output"
+         target: "flow://ActTwo"
+
+   reasoning:
+      instructions: "Do work"
+      actions:
+         invoke_one: @actions.act_one
+            description: "Invoke first"
+         invoke_two: @actions.act_two
+            description: "Invoke second"
+"#;
+        let graph = parse_and_build(source);
+
+        let reasoning_actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(reasoning_actions.len(), 2, "Expected 2 reasoning actions in 'main'");
+
+        let action_defs = graph.get_topic_action_defs("main");
+        assert_eq!(action_defs.len(), 2, "Expected 2 action defs in 'main'");
+
+        // A non-existent topic must return empty collections.
+        assert!(
+            graph.get_topic_reasoning_actions("nonexistent").is_empty(),
+            "Unknown topic should have no reasoning actions"
+        );
+        assert!(
+            graph.get_topic_action_defs("nonexistent").is_empty(),
+            "Unknown topic should have no action defs"
+        );
+    }
 }
