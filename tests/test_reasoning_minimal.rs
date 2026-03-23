@@ -756,3 +756,81 @@ topic main:
         }
     }
 }
+
+// ============================================================================
+// Parser error-path tests
+//
+// The tests above exclusively exercise the happy path (valid input → Ok).
+// Nothing previously verified that parse() returns Err for malformed input.
+// These tests cover the four highest-value error cases.
+// ============================================================================
+
+#[test]
+fn test_parse_fails_on_unclosed_string_literal() {
+    // A string literal whose closing double-quote is missing is a lexer error.
+    // parse() must return Err and include at least one error message.
+    let src = "config:\n   agent_name: \"unclosed";
+    let result = parser::parse(src);
+    assert!(result.is_err(), "Expected Err for unclosed string literal, got Ok");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty(), "Error list must be non-empty for unclosed string");
+}
+
+#[test]
+fn test_parse_fails_when_topic_has_no_name() {
+    // `topic:` without a following identifier violates the grammar — the parser
+    // expects `topic <ident>:` but finds a bare colon.  parse() must return Err.
+    let src = "config:\n   agent_name: \"Test\"\n\ntopic:\n   description: \"Nameless\"\n";
+    let result = parser::parse(src);
+    assert!(result.is_err(), "Expected Err when topic keyword has no identifier name");
+}
+
+#[test]
+fn test_parse_with_errors_returns_partial_ast_and_errors_on_invalid_block() {
+    // parse_with_errors() is the error-tolerant API.  When the input contains a
+    // recoverable parse error sandwiched between two valid blocks, it should return
+    // both a non-empty error list AND a partial AST that includes the valid blocks.
+    let src = r#"config:
+   agent_name: "Test"
+
+!!!invalid_block!!!
+
+topic main:
+   description: "Main"
+"#;
+    let (partial, errors) = parser::parse_with_errors(src);
+    assert!(!errors.is_empty(), "Expected parse errors for invalid top-level content");
+    // The valid config and topic blocks should be recovered by the error-recovery pass.
+    let ast = partial.expect("Expected a partial AST even in the presence of errors");
+    assert!(ast.config.is_some(), "config block should be present after error recovery");
+}
+
+#[test]
+fn test_parse_with_errors_reports_errors_for_bare_reference_at_top_level() {
+    // A bare `@variables.x = 5` expression at the top level is not a valid block.
+    // parse_with_errors() must surface at least one error and must not panic.
+    let src = "config:\n   agent_name: \"Test\"\n\n@variables.x = 5\n";
+    let (_, errors) = parser::parse_with_errors(src);
+    assert!(!errors.is_empty(), "Expected errors for bare reference assignment at top level");
+}
+
+#[test]
+fn test_parse_with_structured_errors_returns_message_for_invalid_input() {
+    // parse_with_structured_errors() must return Err with structured ParseErrorInfo
+    // for malformed input.  Each error must carry a non-empty human-readable message
+    // (used by IDEs and language servers).
+    use busbar_sf_agentscript::parse_with_structured_errors;
+
+    let src = "config:\n   agent_name: \"unclosed";
+    let result = parse_with_structured_errors(src);
+    assert!(result.is_err(), "Expected Err from parse_with_structured_errors for malformed input");
+    let errors = result.unwrap_err();
+    assert!(!errors.is_empty(), "Expected at least one structured error");
+    for err in &errors {
+        assert!(
+            !err.message.is_empty(),
+            "ParseErrorInfo.message must not be empty, got: {:?}",
+            err
+        );
+    }
+}
