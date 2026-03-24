@@ -347,4 +347,130 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Source with one topic containing an action definition and a reasoning action
+    /// that invokes it, plus a variable that the reasoning action writes to.
+    fn action_and_variable_source() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+variables:
+   result: mutable string = ""
+      description: "Action result"
+
+topic main:
+   description: "Main"
+
+   actions:
+      do_thing:
+         description: "Do the thing"
+         inputs:
+            query: string
+               description: "Query"
+         outputs:
+            answer: string
+               description: "Answer"
+         target: "flow://DoThing"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         call_do_thing: @actions.do_thing
+            description: "Call do_thing"
+            with:
+               query: @variables.result
+"#
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // The reasoning action `call_do_thing` invokes the action def `do_thing`.
+        // find_action_invokers(do_thing) should return the reasoning action node.
+        let graph = parse_and_build(action_and_variable_source());
+        let action_def_idx = graph
+            .get_action_def("main", "do_thing")
+            .expect("do_thing action def not found");
+
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly one invoker of do_thing");
+    }
+
+    #[test]
+    fn test_find_variable_readers_detects_read_edge() {
+        // The reasoning action reads @variables.result as an input binding.
+        // find_variable_readers(result) should return at least one node.
+        let graph = parse_and_build(action_and_variable_source());
+        let var_idx = graph.get_variable("result").expect("variable 'result' not found");
+
+        let readers = graph.find_variable_readers(var_idx);
+        assert!(!readers.is_empty(), "Expected at least one reader of variable 'result'");
+    }
+
+    #[test]
+    fn test_find_variable_writers_empty_when_no_set_stmt() {
+        // The source above never uses `set @variables.result = ...`, so there should
+        // be no writer edges pointing at the variable node.
+        let graph = parse_and_build(action_and_variable_source());
+        let var_idx = graph.get_variable("result").expect("variable 'result' not found");
+
+        let writers = graph.find_variable_writers(var_idx);
+        assert!(writers.is_empty(), "Expected no writers — variable is only read, never set");
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_returns_all_actions() {
+        // get_topic_reasoning_actions("main") must return the `call_do_thing` node.
+        let graph = parse_and_build(action_and_variable_source());
+
+        let actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(actions.len(), 1, "Expected 1 reasoning action in topic 'main'");
+    }
+
+    #[test]
+    fn test_get_topic_action_defs_returns_all_defs() {
+        // get_topic_action_defs("main") must return the `do_thing` node.
+        let graph = parse_and_build(action_and_variable_source());
+
+        let defs = graph.get_topic_action_defs("main");
+        assert_eq!(defs.len(), 1, "Expected 1 action def in topic 'main'");
+    }
+
+    #[test]
+    fn test_topic_execution_order_returns_none_for_cyclic_graph() {
+        // A → B and B → A form a cycle. topic_execution_order() must return None
+        // because toposort fails on cyclic graphs.
+        let source = r#"config:
+   agent_name: "Test"
+
+start_agent selector:
+   description: "Route"
+   reasoning:
+      instructions: "Select"
+      actions:
+         go_a: @utils.transition to @topic.topic_a
+            description: "Go to A"
+
+topic topic_a:
+   description: "Topic A"
+   reasoning:
+      instructions: "In A"
+      actions:
+         go_b: @utils.transition to @topic.topic_b
+            description: "Go to B"
+
+topic topic_b:
+   description: "Topic B"
+   reasoning:
+      instructions: "In B"
+      actions:
+         back_to_a: @utils.transition to @topic.topic_a
+            description: "Back to A"
+"#;
+        let graph = parse_and_build(source);
+        let order = graph.topic_execution_order();
+        assert!(
+            order.is_none(),
+            "Expected None from topic_execution_order for a cyclic graph"
+        );
+    }
 }

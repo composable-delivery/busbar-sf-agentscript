@@ -271,4 +271,33 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    // -------------------------------------------------------------------------
+    // Parser error-path tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_unterminated_string_literal_returns_error() {
+        // An unterminated string literal causes a lexer error before the parser
+        // even runs.  parse_source must return Err in this case.
+        let source = "config:\n   agent_name: \"unterminated";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "Unterminated string literal should not parse successfully"
+        );
+    }
+
+    #[test]
+    fn test_parse_agent_name_without_quotes_returns_error() {
+        // agent_name requires a quoted string literal.  A bare identifier is a
+        // token type mismatch that the config parser cannot recover from cleanly,
+        // so parse_source must report at least one error.
+        let source = "config:\n   agent_name: BareIdentifier\n";
+        let result = parse_source(source);
+        assert!(
+            result.is_err(),
+            "agent_name with an unquoted bare identifier should not parse successfully"
+        );
+    }
 }
