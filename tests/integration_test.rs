@@ -271,4 +271,32 @@ topic main:
             .collect();
         assert!(tokens.iter().any(|t| matches!(t, lexer::Token::Config)));
     }
+
+    #[test]
+    fn test_parse_source_returns_error_for_unknown_top_level_keyword() {
+        // A word that is not a valid AgentScript top-level keyword (e.g. "foobar")
+        // cannot match any block parser.  The parser's error-recovery strategy
+        // (skip_then_retry_until) generates a parse error for the skipped tokens,
+        // so parse_source must return Err.
+        let result = parse_source("foobar_keyword: \"value\"\n");
+        assert!(
+            result.is_err(),
+            "Expected Err for unknown top-level keyword, got Ok"
+        );
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message in the Err result");
+    }
+
+    #[test]
+    fn test_parse_source_returns_error_for_unpaired_at_sign() {
+        // An `@` symbol at the top level with no following namespace is not valid
+        // AgentScript syntax.  It should produce at least one parse error.
+        let result = parse_source("@\n");
+        assert!(
+            result.is_err(),
+            "Expected Err for bare '@' at the top level, got Ok"
+        );
+        let errors = result.unwrap_err();
+        assert!(!errors.is_empty(), "Expected at least one error message for bare '@'");
+    }
 }
