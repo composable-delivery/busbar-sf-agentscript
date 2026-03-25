@@ -347,4 +347,181 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_find_variable_readers_returns_reasoning_action() {
+        // A reasoning action that binds @variables.order_id via a with clause
+        // must show up as a reader of the order_id variable.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   order_id: mutable string = ""
+      description: "Order ID used throughout the topic"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      lookup_order:
+         description: "Look up an order"
+         inputs:
+            id: string
+               description: "The order identifier"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://LookupOrder"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         do_lookup: @actions.lookup_order
+            description: "Perform the lookup"
+            with id=@variables.order_id
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("order_id").expect("order_id variable not found");
+        let readers = graph.find_variable_readers(var_idx);
+        assert!(!readers.is_empty(), "Expected at least one reader of order_id");
+        // The reasoning action 'do_lookup' is the only reader
+        assert_eq!(readers.len(), 1, "Expected exactly one reader of order_id");
+    }
+
+    #[test]
+    fn test_find_variable_writers_returns_reasoning_action() {
+        // A reasoning action with `set @variables.status = @outputs.result` must
+        // show up as a writer of the status variable.
+        let source = r#"config:
+   agent_name: "Test"
+
+variables:
+   status: mutable string = ""
+      description: "Computed status written by a reasoning action"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      check:
+         description: "Run a status check"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            result: string
+               description: "Check result"
+         target: "flow://Check"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         do_check: @actions.check
+            description: "Run a status check"
+            with id=...
+            set @variables.status = @outputs.result
+"#;
+        let graph = parse_and_build(source);
+        let var_idx = graph.get_variable("status").expect("status variable not found");
+        let writers = graph.find_variable_writers(var_idx);
+        assert!(!writers.is_empty(), "Expected at least one writer of status");
+        assert_eq!(writers.len(), 1, "Expected exactly one writer of status");
+    }
+
+    #[test]
+    fn test_find_action_invokers_returns_reasoning_action() {
+        // A reasoning action that references @actions.get_data is an invoker
+        // of the get_data action definition; find_action_invokers should return it.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      get_data:
+         description: "Fetch a record"
+         inputs:
+            id: string
+               description: "Record ID"
+         outputs:
+            result: string
+               description: "Fetched result"
+         target: "flow://GetData"
+
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         fetch: @actions.get_data
+            description: "Fetch the record"
+"#;
+        let graph = parse_and_build(source);
+        let action_def_idx =
+            graph.get_action_def("main", "get_data").expect("get_data action def not found");
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert!(!invokers.is_empty(), "Expected at least one invoker of get_data");
+        // Only one reasoning action references get_data
+        assert_eq!(invokers.len(), 1, "Expected exactly one invoker of get_data");
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions_returns_all_actions_in_topic() {
+        // get_topic_reasoning_actions("main") must return every reasoning action
+        // declared inside topic main's reasoning block.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+   reasoning:
+      instructions: "Help the user"
+      actions:
+         escalate: @utils.escalate
+            description: "Escalate to a human agent"
+         go_other: @utils.transition to @topic.other
+            description: "Switch to the other topic"
+
+topic other:
+   description: "Other topic"
+   reasoning:
+      instructions: "Handle other"
+"#;
+        let graph = parse_and_build(source);
+        let reasoning_actions = graph.get_topic_reasoning_actions("main");
+        // topic main has two reasoning actions: escalate and go_other
+        assert_eq!(reasoning_actions.len(), 2, "Expected 2 reasoning actions in topic main");
+        // topic other has no reasoning actions — it should return an empty list
+        assert_eq!(
+            graph.get_topic_reasoning_actions("other").len(),
+            0,
+            "topic other has no reasoning actions; its count must not bleed into main"
+        );
+    }
+
+    #[test]
+    fn test_get_topic_action_defs_returns_all_defs_in_topic() {
+        // get_topic_action_defs("main") must return every action definition
+        // declared inside topic main's actions block.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      first_action:
+         description: "First action"
+         target: "flow://First"
+      second_action:
+         description: "Second action"
+         target: "flow://Second"
+
+   reasoning:
+      instructions: "Help the user"
+"#;
+        let graph = parse_and_build(source);
+        let action_defs = graph.get_topic_action_defs("main");
+        // topic main has exactly two action definitions
+        assert_eq!(action_defs.len(), 2, "Expected 2 action defs in topic main");
+    }
 }

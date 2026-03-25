@@ -417,4 +417,71 @@ mod tests {
         // Verify we can get a summary
         assert!(report.unique_count() > 0);
     }
+
+    #[test]
+    fn test_extract_flow_and_apex_method_dependencies() {
+        // An agent with a flow:// action and an apex://Class.method action should
+        // populate the flows and apex_classes sets correctly, and be queryable via
+        // get_by_type and get_by_topic.
+        let source = r#"config:
+   agent_name: "Test"
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      fetch_order:
+         description: "Fetch an order via a Flow"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            status: string
+               description: "Order status"
+         target: "flow://FetchOrder"
+
+      classify_order:
+         description: "Classify the order via Apex"
+         inputs:
+            id: string
+               description: "Order ID"
+         outputs:
+            label: string
+               description: "Classification label"
+         target: "apex://OrderClassifier.classify"
+
+   reasoning:
+      instructions: "Help the user"
+"#;
+        let ast = crate::parse(source).expect("Failed to parse source");
+        let report = extract_dependencies(&ast);
+
+        // Flow dependency is extracted correctly
+        assert!(report.uses_flow("FetchOrder"), "FetchOrder should be in flows");
+        assert!(report.flows.contains("FetchOrder"), "FetchOrder should be in the flows set");
+
+        // Apex method dependency extracts the class name
+        assert!(
+            report.uses_apex_class("OrderClassifier"),
+            "OrderClassifier should be in apex_classes"
+        );
+        assert!(
+            report.apex_classes.contains("OrderClassifier"),
+            "OrderClassifier should be in the apex_classes set"
+        );
+
+        // get_by_type grouping must include both flow and apex_method categories
+        let flow_deps = report.get_by_type("flow");
+        assert_eq!(flow_deps.len(), 1, "Expected 1 flow dependency");
+
+        let apex_deps = report.get_by_type("apex_method");
+        assert_eq!(apex_deps.len(), 1, "Expected 1 apex_method dependency");
+
+        // get_by_topic groups all action dependencies under "main"
+        let main_deps = report.get_by_topic("main");
+        assert_eq!(main_deps.len(), 2, "Expected 2 total dependencies in topic main");
+
+        // unique_count reflects all distinct dependency entries
+        assert!(report.unique_count() >= 2, "Expected at least 2 unique dependencies");
+    }
 }
