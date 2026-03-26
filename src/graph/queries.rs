@@ -347,4 +347,52 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    #[test]
+    fn test_find_usages_of_transition_target_topic() {
+        // topic_a has a TransitionsTo edge → topic_b.
+        // find_usages(topic_b_idx) must include topic_a as a source of that edge,
+        // because any node whose outgoing edge terminates at topic_b "uses" topic_b.
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let topic_b_idx = graph.get_topic("topic_b").expect("topic_b not found");
+
+        let usages = graph.find_usages(topic_b_idx);
+        assert!(
+            usages.nodes.contains(&topic_a_idx),
+            "Expected topic_a to appear as a user of topic_b via TransitionsTo edge"
+        );
+    }
+
+    #[test]
+    fn test_find_usages_of_topic_routed_from_start_agent() {
+        // start_agent routes to topic_a via a Routes edge.
+        // find_usages(topic_a_idx) must include the start_agent node as a source,
+        // because start_agent has an outgoing Routes edge terminating at topic_a.
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let start_agent_idx = graph.get_start_agent().expect("start_agent not found");
+
+        let usages = graph.find_usages(topic_a_idx);
+        assert!(
+            usages.nodes.contains(&start_agent_idx),
+            "Expected start_agent to appear as a user of topic_a via Routes edge"
+        );
+    }
+
+    #[test]
+    fn test_find_dependencies_of_start_agent_returns_routed_topic() {
+        // start_agent routes to topic_a via a Routes edge.
+        // find_dependencies(start_agent_idx) must include topic_a as a dependency,
+        // because start_agent has an outgoing Routes edge pointing at topic_a.
+        let graph = parse_and_build(two_topic_source());
+        let topic_a_idx = graph.get_topic("topic_a").expect("topic_a not found");
+        let start_agent_idx = graph.get_start_agent().expect("start_agent not found");
+
+        let deps = graph.find_dependencies(start_agent_idx);
+        assert!(
+            deps.nodes.contains(&topic_a_idx),
+            "Expected topic_a to appear as a dependency of start_agent via Routes edge"
+        );
+    }
 }

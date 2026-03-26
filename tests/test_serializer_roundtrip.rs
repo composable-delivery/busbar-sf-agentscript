@@ -216,3 +216,127 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_start_agent_basic() {
+    // Covers the `start_agent` block — the serializer writes it but no roundtrip
+    // test existed. Verifies that the name and reasoning instructions survive a
+    // parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "TestAgent"
+
+start_agent topic_selector:
+   description: "Routes customers to the appropriate topic"
+   reasoning:
+      instructions: "Analyze the customer request and select the most relevant topic"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(
+        serialized.contains("start_agent topic_selector:"),
+        "start_agent header missing from serialized output"
+    );
+    assert!(
+        serialized.contains("Routes customers"),
+        "start_agent description missing from serialized output"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert!(reparsed.start_agent.is_some(), "start_agent block lost after roundtrip");
+    let sa = &reparsed.start_agent.as_ref().unwrap().node;
+    assert_eq!(sa.name.node, "topic_selector", "start_agent name changed after roundtrip");
+    assert!(sa.reasoning.is_some(), "reasoning block lost from start_agent after roundtrip");
+}
+
+#[test]
+fn test_roundtrip_start_agent_with_reasoning_actions() {
+    // Verifies that multiple reasoning actions inside `start_agent` survive a
+    // parse → serialize → parse cycle without being dropped or duplicated.
+    let original = r#"config:
+   agent_name: "TestAgent"
+
+start_agent topic_selector:
+   description: "Routes customers"
+   reasoning:
+      instructions: "Select the best topic"
+      actions:
+         go_help: @utils.transition to @topic.help
+            description: "Route to help"
+         go_orders: @utils.transition to @topic.orders
+            description: "Route to orders"
+
+topic help:
+   description: "Help"
+
+topic orders:
+   description: "Orders"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+
+    let sa = reparsed
+        .start_agent
+        .as_ref()
+        .expect("start_agent lost after roundtrip");
+    let reasoning = sa.node.reasoning.as_ref().expect("reasoning lost from start_agent");
+    let actions = reasoning
+        .node
+        .actions
+        .as_ref()
+        .expect("reasoning actions lost from start_agent");
+    assert_eq!(
+        actions.node.len(),
+        2,
+        "Expected 2 reasoning actions in start_agent after roundtrip, got {}",
+        actions.node.len()
+    );
+}
+
+#[test]
+fn test_roundtrip_system_block_with_messages() {
+    // Covers the top-level `system:` block with a `messages:` sub-block.
+    // The serializer writes messages but no roundtrip test existed. Verifies
+    // that the welcome and error messages survive a parse → serialize → parse cycle.
+    let original = r#"config:
+   agent_name: "TestAgent"
+
+system:
+   messages:
+      welcome: "Welcome to our service!"
+      error: "Something went wrong."
+   instructions: "You are a helpful AI assistant."
+
+topic main:
+   description: "Main topic"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "system block missing from serialized output");
+    assert!(serialized.contains("messages:"), "messages sub-block missing");
+    assert!(
+        serialized.contains("Welcome to our service!"),
+        "welcome message missing from serialized output"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let sys = reparsed
+        .system
+        .as_ref()
+        .expect("system block lost after roundtrip");
+    let msgs = sys
+        .node
+        .messages
+        .as_ref()
+        .expect("messages sub-block lost after roundtrip");
+    let welcome = msgs.node.welcome.as_ref().expect("welcome message lost after roundtrip");
+    assert_eq!(
+        welcome.node, "Welcome to our service!",
+        "welcome message content changed after roundtrip"
+    );
+}
