@@ -347,4 +347,92 @@ topic main:
         // At least one edge should exist (the Routes edge from start_agent → main)
         assert!(graph.edge_count() > 0, "Expected at least one edge in the graph");
     }
+
+    /// Source with a topic that defines an action def and a reasoning action that invokes
+    /// it, reads a variable, and writes another variable.
+    fn source_with_invocation() -> &'static str {
+        r#"config:
+   agent_name: "Test"
+
+variables:
+   param_val: mutable string = ""
+   result: mutable string = ""
+
+topic main:
+   description: "Main topic"
+
+   actions:
+      do_something:
+         description: "An action"
+         inputs:
+            param: string
+               description: "Input parameter"
+         outputs:
+            data: string
+               description: "Output data"
+         target: "flow://DoSomething"
+
+   reasoning:
+      instructions: "Handle"
+      actions:
+         invoke_something: @actions.do_something
+            description: "Invoke do_something"
+            with param=@variables.param_val
+            set @variables.result = @outputs.data
+"#
+    }
+
+    #[test]
+    fn test_find_action_invokers() {
+        // A reasoning action referencing @actions.do_something via an Invokes edge should
+        // appear in find_action_invokers(do_something_idx).
+        let graph = parse_and_build(source_with_invocation());
+        let action_def_idx = graph
+            .get_action_def("main", "do_something")
+            .expect("do_something action def not found");
+        let invokers = graph.find_action_invokers(action_def_idx);
+        assert_eq!(invokers.len(), 1, "Expected exactly 1 invoker for do_something");
+    }
+
+    #[test]
+    fn test_find_variable_readers() {
+        // A reasoning action with `with param=@variables.param_val` creates a Reads edge.
+        // find_variable_readers should return that action.
+        let graph = parse_and_build(source_with_invocation());
+        let var_idx = graph
+            .get_variable("param_val")
+            .expect("param_val variable not found");
+        let readers = graph.find_variable_readers(var_idx);
+        assert!(!readers.is_empty(), "Expected at least one reader for param_val");
+    }
+
+    #[test]
+    fn test_find_variable_writers() {
+        // A reasoning action with `set @variables.result = @outputs.data` creates a Writes
+        // edge. find_variable_writers should return that action.
+        let graph = parse_and_build(source_with_invocation());
+        let var_idx = graph
+            .get_variable("result")
+            .expect("result variable not found");
+        let writers = graph.find_variable_writers(var_idx);
+        assert!(!writers.is_empty(), "Expected at least one writer for result");
+    }
+
+    #[test]
+    fn test_get_topic_reasoning_actions() {
+        // get_topic_reasoning_actions should return the reasoning actions declared in a
+        // topic's reasoning block (one in this case: invoke_something).
+        let graph = parse_and_build(source_with_invocation());
+        let actions = graph.get_topic_reasoning_actions("main");
+        assert_eq!(actions.len(), 1, "Expected 1 reasoning action in topic main");
+    }
+
+    #[test]
+    fn test_get_topic_action_defs() {
+        // get_topic_action_defs should return the action definitions declared in a topic's
+        // actions block (one in this case: do_something).
+        let graph = parse_and_build(source_with_invocation());
+        let defs = graph.get_topic_action_defs("main");
+        assert_eq!(defs.len(), 1, "Expected 1 action def in topic main");
+    }
 }

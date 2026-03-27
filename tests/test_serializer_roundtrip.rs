@@ -216,3 +216,95 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_system_block_with_messages() {
+    // Covers the top-level `system:` block containing both `instructions:` and
+    // `messages:` (welcome + error).  The serializer writes these fields but no
+    // roundtrip test existed — this ensures they survive parse → serialize → parse.
+    let original = r#"config:
+   agent_name: "SupportAgent"
+
+system:
+   instructions: "You are a helpful support agent."
+
+   messages:
+      welcome: "Hello! How can I help you today?"
+      error: "I had trouble processing your request. Please try again."
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block in serialized output");
+    assert!(serialized.contains("messages:"), "Missing messages block in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert!(reparsed.system.is_some(), "system block lost after roundtrip");
+    let system = &reparsed.system.as_ref().unwrap().node;
+    assert!(system.instructions.is_some(), "instructions lost after roundtrip");
+    let messages = system.messages.as_ref().expect("messages block lost after roundtrip");
+    assert!(messages.node.welcome.is_some(), "welcome message lost after roundtrip");
+    assert!(messages.node.error.is_some(), "error message lost after roundtrip");
+}
+
+#[test]
+fn test_roundtrip_action_with_various_param_types() {
+    // Covers action defs with non-string parameter types: `id`, `boolean`, `number`.
+    // These types are serialized differently from `string` but no roundtrip test
+    // existed for them.
+    let original = r#"config:
+   agent_name: "TypedAgent"
+
+topic main:
+   description: "Main"
+   actions:
+      lookup_record:
+         description: "Look up a Salesforce record"
+         inputs:
+            record_id: id
+               description: "Salesforce record ID"
+               is_required: True
+            include_details: boolean
+               description: "Whether to include full details"
+               is_required: False
+            max_results: number
+               description: "Maximum number of results to return"
+         outputs:
+            found: boolean
+               description: "Whether the record was found"
+            score: number
+               description: "Confidence score"
+         target: "flow://LookupRecord"
+   reasoning:
+      instructions: "Help the user look up records"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("lookup_record:"), "Missing action def in serialized output");
+    assert!(serialized.contains(": id"), "Missing id param type");
+    assert!(serialized.contains(": boolean"), "Missing boolean param type");
+    assert!(serialized.contains(": number"), "Missing number param type");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(reparsed.topics.len(), 1);
+    let topic = &reparsed.topics[0].node;
+    let actions = topic.actions.as_ref().expect("Missing actions block after roundtrip");
+    assert_eq!(actions.node.actions.len(), 1, "Expected 1 action def");
+    let action = &actions.node.actions[0].node;
+    assert_eq!(
+        action.inputs.as_ref().expect("inputs missing").node.len(),
+        3,
+        "Expected 3 inputs"
+    );
+    assert_eq!(
+        action.outputs.as_ref().expect("outputs missing").node.len(),
+        2,
+        "Expected 2 outputs"
+    );
+}
