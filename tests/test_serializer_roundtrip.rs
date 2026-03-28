@@ -216,3 +216,111 @@ topic main:
     assert!(topic.before_reasoning.is_some(), "before_reasoning lost after roundtrip");
     assert!(topic.after_reasoning.is_some(), "after_reasoning lost after roundtrip");
 }
+
+#[test]
+fn test_roundtrip_system_block_with_messages() {
+    // Covers the `system:` block containing both `messages:` (welcome + error) and
+    // `instructions:`. No prior roundtrip test exercised the messages sub-block.
+    let original = r#"config:
+   agent_name: "MsgAgent"
+
+system:
+   instructions: "You are a helpful assistant."
+   messages:
+      welcome: "Hello! How can I help you today?"
+      error: "Something went wrong. Please try again."
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("system:"), "Missing system block in serialized output");
+    assert!(serialized.contains("messages:"), "Missing messages sub-block");
+    assert!(serialized.contains("welcome:"), "Missing welcome entry");
+    assert!(serialized.contains("error:"), "Missing error entry");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let sys = reparsed.system.as_ref().expect("system block lost after roundtrip");
+    assert!(sys.node.instructions.is_some(), "system instructions lost after roundtrip");
+    let msgs = sys.node.messages.as_ref().expect("messages block lost after roundtrip");
+    assert!(msgs.node.welcome.is_some(), "welcome message lost after roundtrip");
+    assert!(msgs.node.error.is_some(), "error message lost after roundtrip");
+}
+
+#[test]
+fn test_roundtrip_linked_variable() {
+    // Covers a `linked` variable declaration with a `source:` reference binding.
+    // Previous roundtrip tests only covered `mutable` variables.
+    use busbar_sf_agentscript::ast::VariableKind;
+
+    let original = r#"config:
+   agent_name: "LinkedAgent"
+
+variables:
+   user_email: linked string
+      description: "Email of the logged-in user"
+      source: @messagingSession.userEmail
+
+topic main:
+   description: "Main"
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(serialized.contains("linked"), "Missing 'linked' keyword in serialized output");
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    let vars = reparsed.variables.as_ref().expect("variables block lost after roundtrip");
+    assert_eq!(vars.node.variables.len(), 1, "Expected one variable after roundtrip");
+    let var = &vars.node.variables[0].node;
+    assert_eq!(var.name.node, "user_email");
+    assert!(
+        matches!(var.kind, VariableKind::Linked),
+        "Variable kind changed from Linked after roundtrip"
+    );
+    assert!(var.source.is_some(), "source reference lost after roundtrip");
+}
+
+#[test]
+fn test_roundtrip_topic_with_system_override() {
+    // Covers a `topic` block that contains a `system:` override block. The override
+    // sets topic-scoped instructions that differ from the global system block.
+    // No prior roundtrip test exercised the per-topic system override.
+    let original = r#"config:
+   agent_name: "SysOverrideAgent"
+
+topic support:
+   description: "Support topic"
+
+   system:
+      instructions: "You are now in support mode. Focus on resolving customer issues quickly."
+
+   reasoning:
+      instructions: "Help the user resolve their issue."
+"#;
+
+    let ast = parse(original).expect("Failed to parse original");
+    let serialized = serialize(&ast);
+
+    assert!(
+        serialized.contains("system:"),
+        "Missing system override in serialized output"
+    );
+    assert!(
+        serialized.contains("support mode"),
+        "Missing system override instruction text"
+    );
+
+    let reparsed = parse(&serialized).expect("Failed to reparse serialized");
+    assert_eq!(reparsed.topics.len(), 1);
+    let topic = &reparsed.topics[0].node;
+    assert!(topic.system.is_some(), "topic system override lost after roundtrip");
+    assert!(
+        topic.system.as_ref().unwrap().node.instructions.is_some(),
+        "system override instructions lost after roundtrip"
+    );
+}
