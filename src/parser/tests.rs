@@ -1000,3 +1000,97 @@ topic claims_processing:
     let file = result.unwrap();
     assert_eq!(file.topics.len(), 2, "Should have 2 topics");
 }
+
+// ============================================================================
+// Parser Error Path Tests
+// ============================================================================
+
+#[test]
+fn test_parse_error_non_string_agent_name() {
+    // `agent_name` requires a quoted string literal. Providing a bare identifier
+    // must cause a parse error — `parse()` must return `Err`, not `Ok`.
+    let source = r#"config:
+   agent_name: NotAString
+"#;
+    let result = parse(source);
+    assert!(
+        result.is_err(),
+        "Expected parse error for non-string agent_name, but parse succeeded"
+    );
+}
+
+#[test]
+fn test_parse_error_number_literal_as_agent_name() {
+    // agent_name requires a string literal. A numeric literal is a different token
+    // type (NumberLit), so the parser must report an error.
+    let source = "config:\n   agent_name: 42\n";
+    let result = parse(source);
+    assert!(
+        result.is_err(),
+        "Expected parse error for numeric agent_name, but parse succeeded"
+    );
+}
+
+// ============================================================================
+// Expression Edge-Case Tests
+// ============================================================================
+
+#[test]
+fn test_parse_unary_negation_in_variable_default() {
+    // Unary negation (`-`) in a variable default value exercises the `UnaryOp::Neg`
+    // branch of the expression parser, which has no other isolated test coverage.
+    let source = r#"config:
+   agent_name: "NegTest"
+
+variables:
+   offset: mutable number = -1
+      description: "A negative offset"
+
+topic main:
+   description: "Main"
+"#;
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "Expected successful parse with unary negation default: {:?}",
+        result.err()
+    );
+    let file = result.unwrap();
+    let vars = file.variables.expect("Expected variables block");
+    assert_eq!(vars.node.variables.len(), 1, "Expected one variable");
+    let var = &vars.node.variables[0].node;
+    assert_eq!(var.name.node, "offset");
+    // The default must be present (value = -1, represented as UnaryOp::Neg)
+    assert!(var.default.is_some(), "Expected a default value for 'offset'");
+}
+
+#[test]
+fn test_parse_ternary_expression_in_set_statement() {
+    // Ternary expression (`then_val if condition else else_val`) in a
+    // `before_reasoning:` set statement. The `Expr::Ternary` variant is defined and
+    // serialized but had no test coverage for parsing.
+    let source = r#"config:
+   agent_name: "TernaryTest"
+
+variables:
+   flag: mutable boolean = True
+   label: mutable string = ""
+
+topic main:
+   description: "Main"
+   before_reasoning:
+      set @variables.label = "active" if @variables.flag else "inactive"
+   reasoning:
+      instructions: "Help the user."
+"#;
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "Expected successful parse with ternary expression in set: {:?}",
+        result.err()
+    );
+    let file = result.unwrap();
+    assert_eq!(file.topics.len(), 1);
+    let topic = &file.topics[0].node;
+    assert!(topic.before_reasoning.is_some(), "Expected before_reasoning block");
+}
